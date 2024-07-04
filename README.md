@@ -1,2 +1,2 @@
 # IDoTheBot
-This is the IDoTheBot report for idothehaxs bot
+This is the IDoTheBot repository for idothehaxs bot
