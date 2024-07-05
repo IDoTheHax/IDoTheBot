@@ -1,83 +1,105 @@
 import discord
-import os
-import _osx_support
+from discord import app_commands
 from discord.ext import commands
 import requests
 import json
+import os
 
-bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
 @bot.event
-async def on_ready(): 
+async def on_ready():
     print(f'We have logged in as {bot.user}')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(e)
 
-@bot.before_invoke
-async def before_any_command(ctx):
-    cmd = ctx.command.name
-    if cmd != 'embed' or cmd != 'analyze' or cmd != 'analyse':
-        if ctx.command.name == 'delete':
-            await ctx.send(f'Deleting Message')
-        else:
-            await ctx.send(f'Executing command: {ctx.command}')
+@bot.tree.command(name="embed", description="Create an embed message")
+@app_commands.describe(title="Embed title", description="Embed description", color="Embed color (hex)")
+async def embed(interaction: discord.Interaction, title: str, description: str, color: str):
+    embed = discord.Embed(title=title, description=description, color=int(color, 16))
+    await interaction.response.send_message(embed=embed)
 
-
-@bot.command()
-async def embed(ctx,  title,  description,  color): 
-    embed = discord.Embed(title=title,  description=description,  color=int(color,  16))
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def github(ctx,  username,  repository): 
+@bot.tree.command(name="github", description="Get information about a GitHub repository")
+@app_commands.describe(username="GitHub username", repository="Repository name")
+async def github(interaction: discord.Interaction, username: str, repository: str):
     url = f'https://api.github.com/repos/{username}/{repository}'
     response = requests.get(url)
     data = json.loads(response.text)
-    
-    embed = discord.Embed(title=data['name'],  description=data['description'],  color=0x00ff00)
-    embed.add_field(name='Stars',  value=data['stargazers_count'])
-    embed.add_field(name='Forks',  value=data['forks_count'])
-    embed.add_field(name='Watchers',  value=data['watchers_count'])
+
+    if response.status_code != 200:
+        await interaction.response.send_message(f"Error: {data.get('message', 'Unknown error occurred')}", ephemeral=True)
+        return
+
+    embed = discord.Embed(title=data['name'], description=data['description'], color=0x00ff00)
+    embed.add_field(name='Stars', value=data['stargazers_count'])
+    embed.add_field(name='Forks', value=data['forks_count'])
+    embed.add_field(name='Watchers', value=data['watchers_count'])
     embed.set_footer(text=f'Created at {data["created_at"]}')
     
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-@bot.command()
-async def analyze(ctx, code): 
-    crash_report_channels = ['crash-reports', 'errors']  # Add channel names to check
+@bot.tree.command(name="analyze", description="Analyze crash reports")
+@app_commands.describe(code="Code to search for in crash reports")
+async def analyze(interaction: discord.Interaction, code: str):
+    crash_report_channels = ['crash-reports', 'errors']
     for channel_name in crash_report_channels:
-        channel = discord.utils.get(ctx.guild.channels, name=channel_name)
+        channel = discord.utils.get(interaction.guild.channels, name=channel_name)
         if channel:
             async for message in channel.history(limit=100):
                 if code in message.content:
-                    await ctx.send(f'Found crash report in {channel.mention}:\n{message.jump_url}')
+                    await interaction.response.send_message(f'Found crash report in {channel.mention}:\n{message.jump_url}')
                     return
-    await ctx.send('Crash report not found.')
+    await interaction.response.send_message('Crash report not found.')
 
-async def analyse(ctx, code): 
-    crash_report_channels = ['crash-reports', 'errors']  # Add channel names to check
-    for channel_name in crash_report_channels:
-        channel = discord.utils.get(ctx.guild.channels, name=channel_name)
-        if channel:
-            async for message in channel.history(limit=100):
-                if code in message.content:
-                    await ctx.send(f'Found crash report in {channel.mention}:\n{message.jump_url}')
-                    return
-    await ctx.send('Crash report not found.')
+@bot.tree.command(name="analyse", description="Analyze crash reports (alternative spelling)")
+@app_commands.describe(code="Code to search for in crash reports")
+async def analyse(interaction: discord.Interaction, code: str):
+    await analyze(interaction, code)
 
-@bot.command()
-async def mappings(ctx, mapping):
-    pass
+@bot.tree.command(name="mappings", description="Command for mappings")
+@app_commands.describe(mapping="Mapping information")
+async def mappings(interaction: discord.Interaction, mapping: str):
+    # Implement your mappings logic here
+    await interaction.response.send_message(f"Mapping command received: {mapping}")
 
-@bot.command()
-async def moderate(ctx,  message_id,  action): 
-    message = await ctx.fetch_message(message_id)
-    if action == 'delete': 
-        await message.delete()
-    elif action == 'edit': 
-        await message.edit(content='This message has been edited.')
-    else: 
-        await ctx.send('Invalid action.')
+@bot.tree.command(name="moderate", description="Moderate a message")
+@app_commands.describe(message_id="ID of the message to moderate", action="Action to take (delete or edit)")
+async def moderate(interaction: discord.Interaction, message_id: str, action: str):
+    try:
+        message = await interaction.channel.fetch_message(int(message_id))
+        if action == 'delete':
+            await message.delete()
+            await interaction.response.send_message("Message deleted.", ephemeral=True)
+        elif action == 'edit':
+            await message.edit(content='This message has been edited.')
+            await interaction.response.send_message("Message edited.", ephemeral=True)
+        else:
+            await interaction.response.send_message("Invalid action.", ephemeral=True)
+    except discord.errors.NotFound:
+        await interaction.response.send_message("Message not found.", ephemeral=True)
+    except discord.errors.Forbidden:
+        await interaction.response.send_message("I don't have permission to do that.", ephemeral=True)
 
+@bot.tree.command(name="purge", description="Delete a specified number of messages")
+@app_commands.describe(amount="Number of messages to delete (max 100)")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def purge(interaction: discord.Interaction, amount: int):
+   if amount <= 0 or amount > 100:
+       await interaction.response.send_message("Please provide a number between 1 and 100.", ephemeral=True)
+       return
+   
+   await interaction.response.defer(ephemeral=True)
+    
+   deleted = await interaction.channel.purge(limit=amount)
+    
+   await interaction.followup.send(f"Successfully deleted {len(deleted)} message(s).", ephemeral=True)
+   #await interaction.response.send_message("WORK")
+
+# Load the token from file
 with open(os.path.expanduser('token.txt'), 'r') as file:
     TOKEN = file.read().strip()
-bot.run(TOKEN) ## define token.txt on the server your running it on
-print(TOKEN)
+
+bot.run(TOKEN)
