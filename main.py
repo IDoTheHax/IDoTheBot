@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from datetime import datetime
 import requests
 import json
 import os
@@ -15,6 +16,18 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
+
+@bot.event
+async def on_message_delete(message):
+    channel = bot.get_channel(1256889638455611502)
+    embed = discord.Embed(title = f"{message.author}'s Message Was Deleted",description = f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", timestamp = datetime.now(), color = 5)
+    await channel.send(embed = embed)
+
+@bot.event
+async def on_message_edit(message_before, message_after):
+    channel = bot.get_channel(1256889638455611502)
+    embed = discord.Embed(title = f"{message_before.author}'s Message Was Edited",description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
+    await channel.send(embed = embed)
 
 @bot.tree.command(name="embed", description="Create an embed message")
 @app_commands.describe(title="Embed title", description="Embed description", color="Embed color (hex)")
