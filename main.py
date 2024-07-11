@@ -8,15 +8,33 @@ import os
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
+# Load blacklists from JSON files
+def load_blacklist(filename):
+    try:
+        with open(filename, 'r') as f:
+            return set(json.load(f))
+    except FileNotFoundError:
+        print(f"Warning: {filename} not found. Creating an empty file.")
+        with open(filename, 'w') as f:
+            json.dump([], f)
+        return set()
+
+BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
+BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
+
+# When bot starts
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
     try:
+        #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
+        #BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
 
+# Get log channels
 def get_log_channel(guild):
     """Find the appropriate logging channel in the given guild."""
     log_channel_names = ["moderator-only", "logs"]
@@ -26,10 +44,23 @@ def get_log_channel(guild):
             return channel
     return None
 
+def should_log(message):
+    """Check if the message should be logged based on blacklists."""
+    if str(message.author.id) in BLACKLISTED_USERS:
+        return False
+    if str(message.channel.id) in BLACKLISTED_CHANNELS:
+        return False
+    return True
+
+# Log on delete
 @bot.event
 async def on_message_delete(message):
     # Ignore DMs
     if not message.guild:
+        return
+
+    # Check if the message should be logged
+    if not should_log(message):
         return
 
     log_channel = get_log_channel(message.guild)
@@ -49,10 +80,15 @@ async def on_message_delete(message):
 
     await log_channel.send(embed=embed)
 
+# Log on edit
 @bot.event
 async def on_message_edit(message_before, message_after):
     # Ignore DMs
     if not message_before.guild:
+        return
+
+    # Check if the message should be logged
+    if not should_log(message_before):
         return
 
     log_channel = get_log_channel(message_before.guild)
@@ -155,6 +191,22 @@ async def purge(interaction: discord.Interaction, amount: int):
     
    await interaction.followup.send(f"Successfully deleted {len(deleted)} message(s).", ephemeral=True)
    #await interaction.response.send_message("WORK")
+
+@bot.tree.command(name="reload_blacklists", description="Reloads Blacklists")
+@app_commands.checks.has_permissions(administrator=True)
+async def reload_blacklists(interaction: discord.Interaction):
+    global BLACKLISTED_USERS, BLACKLISTED_CHANNELS
+    BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
+    BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
+    await interaction.response.send_message("Blacklists reloaded.")
+
+@reload_blacklists.error
+async def reload_blacklists_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.errors.MissingPermissions):
+        await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+    else:
+        await interaction.response.send_message("An error occurred while executing the command.", ephemeral=True)
+
 
 # Load the token from file
 with open(os.path.expanduser('token.txt'), 'r') as file:
