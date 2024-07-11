@@ -17,17 +17,61 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+def get_log_channel(guild):
+    """Find the appropriate logging channel in the given guild."""
+    log_channel_names = ["moderator-only", "logs"]
+    for channel_name in log_channel_names:
+        channel = discord.utils.get(guild.channels, name=channel_name)
+        if channel:
+            return channel
+    return None
+
 @bot.event
 async def on_message_delete(message):
-    channel = bot.get_channel(1256889638455611502)
-    embed = discord.Embed(title = f"{message.author}'s Message Was Deleted",description = f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", timestamp = datetime.now(), color = 5)
-    await channel.send(embed = embed)
+    # Ignore DMs
+    if not message.guild:
+        return
+
+    log_channel = get_log_channel(message.guild)
+    
+    # If no suitable channel is found, we can't log the deletion
+    if not log_channel:
+        return
+
+    embed = discord.Embed(title=f"{message.author}'s Message Was Deleted", 
+                          description=f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", 
+                          timestamp=datetime.now(), 
+                          color=discord.Color.red())
+
+    channel2 = bot.get_channel(1260856171905159190)
+    embed2 = discord.Embed(title = f"{message.author}'s Message Was Deleted",description = f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", timestamp = datetime.now(), color = 5)
+    await channel2.send(embed = embed2)
+
+    await log_channel.send(embed=embed)
 
 @bot.event
 async def on_message_edit(message_before, message_after):
-    channel = bot.get_channel(1256889638455611502)
-    embed = discord.Embed(title = f"{message_before.author}'s Message Was Edited",description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
-    await channel.send(embed = embed)
+    # Ignore DMs
+    if not message_before.guild:
+        return
+
+    log_channel = get_log_channel(message_before.guild)
+    
+    # If no suitable channel is found, we can't log the edit
+    if not log_channel:
+        return
+
+    embed = discord.Embed(title=f"{message_before.author}'s Message Was Edited", 
+                          description=f"Before: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", 
+                          timestamp=datetime.now(), 
+                          color=discord.Color.blue())
+    
+    channel2 = bot.get_channel(1260856171905159190)
+    embed2 = discord.Embed(title = f"{message_before.author}'s Message Was Edited", description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
+    await channel2.send(embed = embed2)
+
+    await log_channel.send(embed=embed)
+
 
 @bot.tree.command(name="embed", description="Create an embed message")
 @app_commands.describe(title="Embed title", description="Embed description", color="Embed color (hex)")
@@ -80,6 +124,7 @@ async def mappings(interaction: discord.Interaction, mapping: str):
 
 @bot.tree.command(name="moderate", description="Moderate a message")
 @app_commands.describe(message_id="ID of the message to moderate", action="Action to take (delete or edit)")
+@app_commands.checks.has_permissions(manage_messages=True)
 async def moderate(interaction: discord.Interaction, message_id: str, action: str):
     try:
         message = await interaction.channel.fetch_message(int(message_id))
