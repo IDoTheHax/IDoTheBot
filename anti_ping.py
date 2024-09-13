@@ -47,15 +47,5 @@ class AutoMute(commands.Cog):
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
 
 
-    @commands.command(name="forceunmute", help="Force unmute a user before the time expires (for moderators)")
-    @commands.has_permissions(manage_messages=True)
-    async def force_unmute(self, ctx, user: discord.Member):
-        """Unmute the user manually (only for moderators)."""
-        if user.id in MUTED_USERS:
-            del MUTED_USERS[user.id]
-            await ctx.send(f"{user.mention} has been manually unmuted by {ctx.author.mention}.")
-        else:
-            await ctx.send(f"{user.mention} is not currently muted.")
-
 async def setup(bot):
     await bot.add_cog(AutoMute(bot))
