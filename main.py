@@ -31,6 +31,8 @@ async def on_ready():
         #BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
+
+        await bot.load_extension("cooldown_adjust")
     except Exception as e:
         print(e)
 
