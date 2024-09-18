@@ -160,24 +160,79 @@ async def mappings(interaction: discord.Interaction, mapping: str):
     # Implement your mappings logic here
     await interaction.response.send_message(f"Mapping command received: {mapping}")
 
-@bot.tree.command(name="moderate", description="Moderate a message")
-@app_commands.describe(message_id="ID of the message to moderate", action="Action to take (delete or edit)")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def moderate(interaction: discord.Interaction, message_id: str, action: str):
+@bot.tree.command(name="moderate", description="Moderate a message or user")
+@app_commands.describe(
+    message_id="ID of the message to moderate (optional for ban)", 
+    action="Action to take (delete, edit, mute, or ban)", 
+    user="User to ban (for ban action)"
+)
+@app_commands.checks.has_permissions(manage_messages=True, ban_members=True)
+async def moderate(interaction: discord.Interaction, action: str, message_id: str = None, user: discord.User = None, duration: int = None, reason: str = "No reason provided"):
     try:
-        message = await interaction.channel.fetch_message(int(message_id))
         if action == 'delete':
+            if message_id is None:
+                await interaction.response.send_message("Please provide a message ID to delete.", ephemeral=True)
+                return
+
+            message = await interaction.channel.fetch_message(int(message_id))
             await message.delete()
             await interaction.response.send_message("Message deleted.", ephemeral=True)
+
         elif action == 'edit':
+            if message_id is None:
+                await interaction.response.send_message("Please provide a message ID to edit.", ephemeral=True)
+                return
+
+            message = await interaction.channel.fetch_message(int(message_id))
             await message.edit(content='This message has been edited.')
             await interaction.response.send_message("Message edited.", ephemeral=True)
+
+        elif action == 'ban':
+            if user is None:
+                await interaction.response.send_message("Please mention a user to ban.", ephemeral=True)
+                return
+
+            try:
+                # Send a DM to the user explaining the ban
+                await user.send(f"You have been banned from {interaction.guild.name} for the following reason: {reason}")
+            except discord.errors.Forbidden:
+                # Couldn't send DM, maybe user has DMs disabled
+                await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the ban.", ephemeral=True)
+
+            await interaction.guild.ban(user, reason="Moderation action taken")
+            await interaction.response.send_message(f"{user.mention} has been banned.", ephemeral=True)
+
+        elif action == 'mute':
+            if user is None:
+                await interaction.response.send_message("Please mention a user to mute.", ephemeral=True)
+                return
+
+            if duration is None or duration <= 0:
+                await interaction.response.send_message("Please provide a valid mute duration in minutes.", ephemeral=True)
+                return
+
+            try:
+                # Send a DM to the user explaining the mute
+                await user.send(f"You have been muted in {interaction.guild.name} for {duration} minutes for the following reason: {reason}")
+            except discord.errors.Forbidden:
+                # Couldn't send DM, maybe user has DMs disabled
+                await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the mute.", ephemeral=True)
+
+
+            # Set the mute duration (in seconds)
+            mute_duration = datetime.timedelta(minutes=duration)
+            await user.timeout(mute_duration, reason="Muted by moderator")
+
+            await interaction.response.send_message(f"{user.mention} has been muted for {duration} minutes.", ephemeral=True)
+
         else:
             await interaction.response.send_message("Invalid action.", ephemeral=True)
+
     except discord.errors.NotFound:
-        await interaction.response.send_message("Message not found.", ephemeral=True)
+        await interaction.response.send_message("Message or user not found.", ephemeral=True)
     except discord.errors.Forbidden:
         await interaction.response.send_message("I don't have permission to do that.", ephemeral=True)
+
 
 @bot.tree.command(name="purge", description="Delete a specified number of messages")
 @app_commands.describe(amount="Number of messages to delete (max 100)")
