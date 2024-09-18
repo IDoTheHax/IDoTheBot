@@ -26,25 +26,27 @@ class CommandControl(commands.Cog):
 
     @discord.app_commands.command(name="shush", description="Disable a specific command (for moderators)")
     @commands.has_permissions(administrator=True)
-    async def shush(self, ctx, command_name: str):
+    async def shush(self, interaction: discord.Interaction, command_name: str):
         """Disable a specific command."""
-        if command_name in self.disabled_commands:
-            await ctx.response.send_message(f"The `{command_name}` command is already disabled.")
-        elif command_name not in self.bot.all_commands:
-            # Get all the commands in the bot
-            all_commands = self.bot.all_commands
-            command_list = [command for command in all_commands]
+        # Fetch all application commands
+        all_commands = await self.bot.tree.fetch_commands()
 
+        # Check if the command_name is among the fetched commands
+        if command_name in [cmd.name for cmd in all_commands]:
+            if command_name in self.disabled_commands:
+                await interaction.response.send_message(f"The `{command_name}` command is already disabled.")
+            else:
+                self.disabled_commands.add(command_name)
+                self.save_disabled_commands()
+                await interaction.response.send_message(f"The `{command_name}` command has been disabled.")
+        else:
             # Format and send the message with available commands
+            command_list = [cmd.name for cmd in all_commands]
             available_commands = ", ".join(command_list)
-            await ctx.response.send_message(
+            await interaction.response.send_message(
                 f"No command found with the name `{command_name}`. "
                 f"Here are the available commands: {available_commands}"
             )
-        else:
-            self.disabled_commands.add(command_name)
-            self.save_disabled_commands()
-            await ctx.response.send_message(f"The `{command_name}` command has been disabled.")
 
     @discord.app_commands.command(name="unshush", description="Re-enable a disabled command (for moderators)")
     @commands.has_permissions(administrator=True)
