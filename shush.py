@@ -3,7 +3,6 @@ from discord.ext import commands
 import json
 import os
 
-
 class CommandControl(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -26,24 +25,35 @@ class CommandControl(commands.Cog):
 
     @discord.app_commands.command(name="shush", description="Disable a specific command (for moderators)")
     @commands.has_permissions(administrator=True)
-    async def shush(self, interaction: discord.Interaction, command_name: str):
+    async def shush(self, ctx, command_name: str):
         """Disable a specific command."""
         # Fetch all application commands
         all_commands = await self.bot.tree.fetch_commands()
 
+        # Special handling for 'anti_ping'
+        if command_name == 'anti_ping':
+            # Disable the anti_ping functionality in the AutoMute cog
+            auto_mute_cog = self.bot.get_cog('AutoMute')
+            if auto_mute_cog:
+                auto_mute_cog.disable_anti_ping()  # Disable anti_ping in AutoMute cog
+                await ctx.response.send_message(f"The `anti_ping` functionality has been disabled.")
+            else:
+                await ctx.response.send_message(f"The `AutoMute` cog is not loaded.")
+            return
+
         # Check if the command_name is among the fetched commands
         if command_name in [cmd.name for cmd in all_commands]:
             if command_name in self.disabled_commands:
-                await interaction.response.send_message(f"The `{command_name}` command is already disabled.")
+                await ctx.response.send_message(f"The `{command_name}` command is already disabled.")
             else:
                 self.disabled_commands.add(command_name)
                 self.save_disabled_commands()
-                await interaction.response.send_message(f"The `{command_name}` command has been disabled.")
+                await ctx.response.send_message(f"The `{command_name}` command has been disabled.")
         else:
             # Format and send the message with available commands
             command_list = [cmd.name for cmd in all_commands]
             available_commands = ", ".join(command_list)
-            await interaction.response.send_message(
+            await ctx.response.send_message(
                 f"No command found with the name `{command_name}`. "
                 f"Here are the available commands: {available_commands}"
             )
@@ -52,6 +62,17 @@ class CommandControl(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def unshush(self, ctx, command_name: str):
         """Re-enable a previously disabled command."""
+        # Special handling for 'anti_ping'
+        if command_name == 'anti_ping':
+            # Re-enable the anti_ping functionality in the AutoMute cog
+            auto_mute_cog = self.bot.get_cog('anti_ping')
+            if auto_mute_cog:
+                auto_mute_cog.enable_anti_ping()  # Enable anti_ping in AutoMute cog
+                await ctx.response.send_message(f"The `anti_ping` functionality has been re-enabled.")
+            else:
+                await ctx.response.send_message(f"The `AutoMute` cog is not loaded.")
+            return
+
         if command_name not in self.disabled_commands:
             await ctx.response.send_message(f"The `{command_name}` command is not disabled.")
         else:
@@ -59,12 +80,19 @@ class CommandControl(commands.Cog):
             self.save_disabled_commands()
             await ctx.response.send_message(f"The `{command_name}` command has been re-enabled.")
 
-    async def cog_check(self, ctx):
-        """Check if the command is disabled before running it."""
-        if ctx.command.name in self.disabled_commands:
-            await ctx.response.send_message(f"The `{ctx.command.name}` command is currently disabled.")
-            return False  # Prevent the command from running
-        return True
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        """Intercept interactions and prevent execution of disabled commands."""
+        if interaction.command.name in self.disabled_commands:
+            await interaction.response.send_message(f"The {interaction.command.name} command is currently disabled.", ephemeral=True)
+            return
+        
+    @commands.Cog.listener()
+    async def on_application_command_error(self, interaction: discord.Interaction, error: Exception):
+        """Handle errors for application commands."""
+        if isinstance(error, commands.CommandNotFound):
+            await interaction.response.send_message("Command not found.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CommandControl(bot))

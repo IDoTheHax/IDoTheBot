@@ -12,6 +12,7 @@ class AutoMute(commands.Cog):
         self.bot = bot
         self.mute_duration = timedelta(minutes=5)
         self.protected_users = self.load_ping_blacklist()  # Load protected user IDs from JSON
+        self.anti_ping_enabled = True  # Variable to enable/disable anti_ping
 
     def load_ping_blacklist(self):
         """Load the list of protected user IDs from a JSON file."""
@@ -22,12 +23,26 @@ class AutoMute(commands.Cog):
         except FileNotFoundError:
             print("ping_blacklist.json not found, creating an empty list.")
             return set()
+        
+    def disable_anti_ping(self):
+        """Disable the anti-ping functionality."""
+        self.anti_ping_enabled = False
+        print("Anti-ping functionality has been disabled.")
+
+    def enable_anti_ping(self):
+        """Enable the anti-ping functionality."""
+        self.anti_ping_enabled = True
+        print("Anti-ping functionality has been enabled.")
 
     @commands.Cog.listener()
     async def on_message(self, message):
         """Check for pings in a message and mute the sender."""
         if message.author == self.bot.user or not message.guild:
             return  # Ignore bot's own messages and DMs
+        
+        if not self.anti_ping_enabled:
+            return  # Skip if anti_ping is disabled
+
 
         # Check if the message mentions anyone
         for mentioned_user in message.mentions:
@@ -46,6 +61,16 @@ class AutoMute(commands.Cog):
                 except discord.HTTPException:
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
 
+
+    @commands.command(name="forceunmute", help="Force unmute a user before the time expires (for moderators)")
+    @commands.has_permissions(manage_messages=True)
+    async def force_unmute(self, ctx, user: discord.Member):
+        """Unmute the user manually (only for moderators)."""
+        if user.id in MUTED_USERS:
+            del MUTED_USERS[user.id]
+            await ctx.send(f"{user.mention} has been manually unmuted by {ctx.author.mention}.")
+        else:
+            await ctx.send(f"{user.mention} is not currently muted.")
 
 async def setup(bot):
     await bot.add_cog(AutoMute(bot))

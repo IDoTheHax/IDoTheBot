@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
+import datetime as dt
 import requests
 import json
 import os
@@ -26,13 +27,17 @@ BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
+    
+    await bot.load_extension("anti_ping")
+    await bot.load_extension("shush")
+    await bot.load_extension("cooldown_adjust")
+
     try:
         #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
         #BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
         synced = await bot.tree.sync()
+        
         print(f"Synced {len(synced)} command(s)")
-
-        await bot.load_extension("cooldown_adjust")
     except Exception as e:
         print(e)
 
@@ -173,7 +178,7 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             if message_id is None:
                 await interaction.response.send_message("Please provide a message ID to delete.", ephemeral=True)
                 return
-
+            
             message = await interaction.channel.fetch_message(int(message_id))
             await message.delete()
             await interaction.response.send_message("Message deleted.", ephemeral=True)
@@ -182,7 +187,7 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             if message_id is None:
                 await interaction.response.send_message("Please provide a message ID to edit.", ephemeral=True)
                 return
-
+            
             message = await interaction.channel.fetch_message(int(message_id))
             await message.edit(content='This message has been edited.')
             await interaction.response.send_message("Message edited.", ephemeral=True)
@@ -198,15 +203,15 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             except discord.errors.Forbidden:
                 # Couldn't send DM, maybe user has DMs disabled
                 await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the ban.", ephemeral=True)
-
+            
             await interaction.guild.ban(user, reason="Moderation action taken")
             await interaction.response.send_message(f"{user.mention} has been banned.", ephemeral=True)
-
+        
         elif action == 'mute':
             if user is None:
                 await interaction.response.send_message("Please mention a user to mute.", ephemeral=True)
                 return
-
+            
             if duration is None or duration <= 0:
                 await interaction.response.send_message("Please provide a valid mute duration in minutes.", ephemeral=True)
                 return
@@ -218,9 +223,9 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
                 # Couldn't send DM, maybe user has DMs disabled
                 await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the mute.", ephemeral=True)
 
-
+            
             # Set the mute duration (in seconds)
-            mute_duration = datetime.timedelta(minutes=duration)
+            mute_duration = dt.timedelta(minutes=duration)
             await user.timeout(mute_duration, reason="Muted by moderator")
 
             await interaction.response.send_message(f"{user.mention} has been muted for {duration} minutes.", ephemeral=True)
@@ -250,7 +255,7 @@ async def purge(interaction: discord.Interaction, amount: int):
    #await interaction.response.send_message("WORK")
 
 @bot.tree.command(name="reload_blacklists", description="Reloads Blacklists")
-@app_commands.checks.has_permissions(administrator=True)
+#@app_commands.checks.has_permissions(administrator=True)
 async def reload_blacklists(interaction: discord.Interaction):
     global BLACKLISTED_USERS, BLACKLISTED_CHANNELS
     BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
