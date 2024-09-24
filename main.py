@@ -1,4 +1,4 @@
-import discord
++import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
@@ -36,7 +36,7 @@ async def on_ready():
         #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
         #BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
         synced = await bot.tree.sync()
-        
+
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
@@ -113,8 +113,6 @@ async def on_message_edit(message_before, message_after):
     embed2 = discord.Embed(title = f"{message_before.author}'s Message Was Edited", description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
     await channel2.send(embed = embed2)
 
-    await log_channel.send(embed=embed)
-
 
 @bot.tree.command(name="embed", description="Create an embed message")
 @app_commands.describe(title="Embed title", description="Embed description", color="Embed color (hex)")
@@ -178,7 +176,7 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             if message_id is None:
                 await interaction.response.send_message("Please provide a message ID to delete.", ephemeral=True)
                 return
-            
+
             message = await interaction.channel.fetch_message(int(message_id))
             await message.delete()
             await interaction.response.send_message("Message deleted.", ephemeral=True)
@@ -187,7 +185,7 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             if message_id is None:
                 await interaction.response.send_message("Please provide a message ID to edit.", ephemeral=True)
                 return
-            
+
             message = await interaction.channel.fetch_message(int(message_id))
             await message.edit(content='This message has been edited.')
             await interaction.response.send_message("Message edited.", ephemeral=True)
@@ -203,15 +201,15 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
             except discord.errors.Forbidden:
                 # Couldn't send DM, maybe user has DMs disabled
                 await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the ban.", ephemeral=True)
-            
+ 
             await interaction.guild.ban(user, reason="Moderation action taken")
             await interaction.response.send_message(f"{user.mention} has been banned.", ephemeral=True)
-        
+ 
         elif action == 'mute':
             if user is None:
                 await interaction.response.send_message("Please mention a user to mute.", ephemeral=True)
                 return
-            
+
             if duration is None or duration <= 0:
                 await interaction.response.send_message("Please provide a valid mute duration in minutes.", ephemeral=True)
                 return
@@ -223,7 +221,7 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
                 # Couldn't send DM, maybe user has DMs disabled
                 await interaction.response.send_message(f"Could not send DM to {user.mention}, but proceeding with the mute.", ephemeral=True)
 
-            
+ 
             # Set the mute duration (in seconds)
             mute_duration = dt.timedelta(minutes=duration)
             await user.timeout(mute_duration, reason="Muted by moderator")
@@ -237,7 +235,6 @@ async def moderate(interaction: discord.Interaction, action: str, message_id: st
         await interaction.response.send_message("Message or user not found.", ephemeral=True)
     except discord.errors.Forbidden:
         await interaction.response.send_message("I don't have permission to do that.", ephemeral=True)
-
 
 @bot.tree.command(name="purge", description="Delete a specified number of messages")
 @app_commands.describe(amount="Number of messages to delete (max 100)")

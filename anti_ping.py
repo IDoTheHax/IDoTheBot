@@ -23,7 +23,7 @@ class AutoMute(commands.Cog):
         except FileNotFoundError:
             print("ping_blacklist.json not found, creating an empty list.")
             return set()
-        
+
     def disable_anti_ping(self):
         """Disable the anti-ping functionality."""
         self.anti_ping_enabled = False
@@ -39,7 +39,7 @@ class AutoMute(commands.Cog):
         """Check for pings in a message and mute the sender."""
         if message.author == self.bot.user or not message.guild:
             return  # Ignore bot's own messages and DMs
-        
+
         if not self.anti_ping_enabled:
             return  # Skip if anti_ping is disabled
 
@@ -54,7 +54,7 @@ class AutoMute(commands.Cog):
             if mentioned_user.id in self.protected_users:
                     # Timeout the author for 5 minutes if they ping a protected user
                 try:
-                    await message.author.timeout(self.mute_duration, reason="Pinging a user")
+                    await message.author.timeout(self.mute_du   ration, reason="Pinging a user")
                     await message.channel.send(f"{message.author.mention} You are not allowed to ping this user.")
                 except discord.Forbidden:
                     await message.channel.send(f"I don't have permission to timeout {message.author.mention}.")
