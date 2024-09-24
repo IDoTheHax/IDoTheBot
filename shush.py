@@ -87,7 +87,7 @@ class CommandControl(commands.Cog):
         if interaction.command.name in self.disabled_commands:
             await interaction.response.send_message(f"The {interaction.command.name} command is currently disabled.", ephemeral=True)
             return
-        
+
     @commands.Cog.listener()
     async def on_application_command_error(self, interaction: discord.Interaction, error: Exception):
         """Handle errors for application commands."""
