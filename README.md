@@ -15,7 +15,7 @@ GitHub Integration: Quickly fetch and display information about GitHub repositor
 Message Reactions: Prompt users to react to messages, and track their reactions in real-time.
 Crash Report Analyzer: Search crash reports and error logs directly from your Discord server to find relevant information in seconds.
 
-Moderation Tools: Manage your community with powerful moderation actions like message deletion, user muting, and banning.
+Moderation Tools: Manage your community with powerful moderation actions like message deletion, user muting, warning, and banning.
 
 ### 🛠️ Commands Overview
 /embed
@@ -32,6 +32,15 @@ Search through crash report channels and quickly locate crash reports based on c
 
 /moderate
 Handle moderation tasks effortlessly with commands to delete, mute, ban users, or edit messages.
+
+/warn
+Warn users when they misbehave, they will be dmed and publicly shamed for their actions
+
+/warnings
+View a users warn count
+
+/clearwarns
+Clear the warnings of a user when they behave well
 
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
