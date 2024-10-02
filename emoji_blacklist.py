@@ -7,10 +7,11 @@ class ReactionOrderChecker(commands.Cog):
         self.reaction_sequences = {}  # Store reaction sequences for each message
         # Define blacklisted emoji sequences
         self.blacklisted_orders = [
-            ["🇨", "🇺", "🇲"],
-            ["🇳", "🇮", "🇬", "🇬", "🇪", "🇷"],
-            ["🇳", "🇮", "🇬", "🇪", "🇷"],
-            ["🖕"],
+            ["🇨", "🇺", "🇲"],  # C U M
+            ["🇳", "🇮", "🇬", "🇬", "🇪", "🇷"],  # N I G G E R
+            ["🇳", "🇮", "🇬", "🇪", "🇷"],  # N I G E R
+            ["🖕"],  # Middle finger emoji
+            ["🖕🏾"], # different color
         ]
 
     @commands.Cog.listener()
