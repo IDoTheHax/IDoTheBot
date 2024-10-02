@@ -23,16 +23,26 @@ def load_blacklist(filename):
 BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
 BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
 
+async def load_cogs():
+    for root, dirs, files in os.walk("./cogs"):  # Recursively walks through the cogs directory
+        for file in files:
+            if file.endswith(".py") and file != "__init__.py":
+                # Create a module path, replacing the slashes with dots
+                cog_path = os.path.join(root, file).replace("./", "").replace("\\", ".").replace("/", ".")
+                cog_path = cog_path[:-3]  # Remove the .py extension
+                
+                try:
+                    await bot.load_extension(cog_path)
+                    print(f"Loaded {cog_path}")
+                except Exception as e:
+                    print(f"Failed to load {cog_path}: {e}")
+
 # When bot starts
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
     
-    await bot.load_extension("anti_ping")
-    await bot.load_extension("cooldown_adjust")
-    await bot.load_extension("moderation")
-    await bot.load_extension("shush")
-    await bot.load_extension("warning_sys")
+    await load_cogs()
 
     try:
         #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
