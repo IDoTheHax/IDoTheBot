@@ -33,6 +33,18 @@ Search through crash report channels and quickly locate crash reports based on c
 /moderate
 Handle moderation tasks effortlessly with commands to delete, mute, ban users, or edit messages.
 
+/kick
+Kick a user
+
+/ban
+Ban a user
+
+/mute 
+Mute a user
+
+/delete
+Delete a message by its id
+
 /warn
 Warn users when they misbehave, they will be dmed and publicly shamed for their actions
 
