@@ -29,8 +29,10 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
     
     await bot.load_extension("anti_ping")
-    await bot.load_extension("shush")
     await bot.load_extension("cooldown_adjust")
+    await bot.load_extension("moderation")
+    await bot.load_extension("shush")
+    await bot.load_extension("warning_sys")
 
     try:
         #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
