@@ -132,6 +132,19 @@ async def embed(interaction: discord.Interaction, title: str, description: str, 
     embed = discord.Embed(title=title, description=description, color=int(color, 16))
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="editembed", description="Edit embed messages by its id")
+@app_commands.describe(message_id="Message ID", title="Embed title", description="Embed description", color="Embed color (hex)")
+async def editembed(ctx, message_id: str, title: str, description: str, color: str):
+    message = await ctx.channel.fetch_message(int(message_id))  # Fetch the message by ID
+
+    new_embed = discord.Embed(
+        title=title,
+        description=description,
+        color=int(color, 16),
+    )
+    await message.edit(embed=new_embed)
+    await ctx.response.send_message("Successfully Edited Embed", ephemeral=False)
+
 @bot.tree.command(name="github", description="Get information about a GitHub repository")
 @app_commands.describe(username="GitHub username", repository="Repository name")
 async def github(interaction: discord.Interaction, username: str, repository: str):

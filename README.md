@@ -21,6 +21,9 @@ Moderation Tools: Manage your community with powerful moderation actions like me
 /embed
 Create detailed embedded messages with customizable titles, descriptions, and colors.
 
+/editembed
+Edit embed by their message id, changing its title, description, and color.
+
 /github
 Retrieve and display details about any GitHub repository, including stats like stars and forks.
 
@@ -29,9 +32,6 @@ Wait for a user to react to a message, and capture their reaction for tracking o
 
 /analyze and /analyse
 Search through crash report channels and quickly locate crash reports based on codes.
-
-/moderate
-Handle moderation tasks effortlessly with commands to delete, mute, ban users, or edit messages.
 
 /kick
 Kick a user
