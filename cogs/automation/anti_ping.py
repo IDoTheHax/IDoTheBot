@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import asyncio
 from datetime import timedelta
 import json
 import os
@@ -12,7 +11,7 @@ class AutoMute(commands.Cog):
         self.bot = bot
         self.mute_duration = timedelta(minutes=5)
         self.protected_users = self.load_ping_blacklist()  # Load protected user IDs from JSON
-        self.anti_ping_enabled = True  # Variable to enable/disable anti_ping
+        self.anti_ping_enabled = self.load_anti_ping_status()  # Load anti_ping status
 
     def load_ping_blacklist(self):
         """Load the list of protected user IDs from a JSON file."""
@@ -24,14 +23,40 @@ class AutoMute(commands.Cog):
             print("ping_blacklist.json not found, creating an empty list.")
             return set()
 
+    def load_anti_ping_status(self):
+        """Load the anti_ping status from a JSON file."""
+        try:
+            with open('config.json', 'r') as f:
+                data = json.load(f)
+                return data.get('anti_ping_enabled', True)  # Default to True if not set
+        except FileNotFoundError:
+            print("config.json not found, creating a new one with default settings.")
+            self.save_anti_ping_status(True)  # Create with default value
+            return True
+
+    def save_anti_ping_status(self, status):
+        """Save the anti_ping status to a JSON file."""
+        try:
+            with open('config.json', 'r+') as f:
+                data = json.load(f)
+                data['anti_ping_enabled'] = status
+                f.seek(0)  # Move the cursor to the beginning of the file
+                json.dump(data, f, indent=4)
+                f.truncate()  # Remove leftover data from the old file size
+        except FileNotFoundError:
+            with open('config.json', 'w') as f:
+                json.dump({'anti_ping_enabled': status}, f)
+
     def disable_anti_ping(self):
         """Disable the anti-ping functionality."""
         self.anti_ping_enabled = False
+        self.save_anti_ping_status(False)  # Save the new state
         print("Anti-ping functionality has been disabled.")
 
     def enable_anti_ping(self):
         """Enable the anti-ping functionality."""
         self.anti_ping_enabled = True
+        self.save_anti_ping_status(True)  # Save the new state
         print("Anti-ping functionality has been enabled.")
 
     @commands.Cog.listener()
@@ -43,24 +68,17 @@ class AutoMute(commands.Cog):
         if not self.anti_ping_enabled:
             return  # Skip if anti_ping is disabled
 
-
         # Check if the message mentions anyone
         for mentioned_user in message.mentions:
-            # Bypass for moderators or a specific user ID (e.g., an admin)
-            #if message.author.guild_permissions.manage_messages or message.author.id == 987323487343493110: # 987323487343493191:  # Replace with actual user ID
-            #    return
-
-            # Apply timeout (mute) to the user for 5 minutes
+            # Timeout the author for 5 minutes if they ping a protected user
             if mentioned_user.id in self.protected_users:
-                    # Timeout the author for 5 minutes if they ping a protected user
                 try:
-                    await message.author.timeout(self.mute_du   ration, reason="Pinging a user")
+                    await message.author.timeout(self.mute_duration, reason="Pinging a user")
                     await message.channel.send(f"{message.author.mention} You are not allowed to ping this user.")
                 except discord.Forbidden:
                     await message.channel.send(f"I don't have permission to timeout {message.author.mention}.")
                 except discord.HTTPException:
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
-
 
     @commands.command(name="forceunmute", help="Force unmute a user before the time expires (for moderators)")
     @commands.has_permissions(manage_messages=True)
