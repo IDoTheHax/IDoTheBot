@@ -4,15 +4,13 @@ import openai
 import os
 import requests
 
-#load_dotenv()
+load_dotenv()
 
-# Set up OpenAI API key
-with open(os.path.expanduser('api.txt'), 'r') as file:
-    openai.api_key = file.read().strip()
+# Load OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Your Discord webhook URL
-with open(os.path.expanduser('web.txt'), 'r') as file:
-    WEBHOOK_URL = file.read().strip()
+# Load Discord webhook URL
+WEBHOOK_URL = file.read().strip()
 
 class ChatGPTCog(commands.Cog):
     def __init__(self, bot):
