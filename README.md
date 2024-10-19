@@ -54,6 +54,9 @@ View a users warn count
 /clearwarns
 Clear the warnings of a user when they behave well
 
+/setmembercount
+Set the the name of a voice channel to the member count of a discord
+
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
 Use the commands right away in any channel or set up permissions to control which users or roles can access each feature.

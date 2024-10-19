@@ -6,8 +6,15 @@ import datetime as dt
 import requests
 import json
 import os
+from dotenv import load_dotenv
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
+
+# Load environment variables from the .env file
+load_dotenv()
+
+# Access the token from the environment variable
+TOKEN = os.getenv("BOT_TOKEN")
 
 # Load blacklists from JSON files
 def load_blacklist(filename):
@@ -290,10 +297,5 @@ async def reload_blacklists_error(interaction: discord.Interaction, error: app_c
         await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
     else:
         await interaction.response.send_message("An error occurred while executing the command.", ephemeral=True)
-
-
-# Load the token from file
-with open(os.path.expanduser('token.txt'), 'r') as file:
-    TOKEN = file.read().strip()
 
 bot.run(TOKEN)
