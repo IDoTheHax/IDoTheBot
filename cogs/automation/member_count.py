@@ -23,8 +23,8 @@ class MemberCount(commands.Cog):
                     await channel.edit(name=f"Members: {member_count}")
                     print(f"Updated member count for guild {guild.name} to {member_count}")
 
-    @commands.command(name="setmembercount")
-    @commands.has_permissions(manage_channels=True)
+    @app_commands.command(name="setmembercount")
+    @app_commands.has_permissions(manage_channels=True)
     async def set_member_count_channel(self, ctx, channel: discord.VoiceChannel):
         """Set the channel where the member count will be displayed."""
         guild_id = ctx.guild.id

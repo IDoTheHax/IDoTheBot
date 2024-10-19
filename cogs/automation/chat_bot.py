@@ -1,8 +1,10 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 import openai
 import os
 import requests
+from dotenv import load_dotenv
 
 load_dotenv()
 
