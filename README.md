@@ -17,6 +17,24 @@ Crash Report Analyzer: Search crash reports and error logs directly from your Di
 
 Moderation Tools: Manage your community with powerful moderation actions like message deletion, user muting, warning, and banning.
 
+### 😎 Custom Emojis
+
+The Discord bot has a list of custom emojis, these can be used for custom text sent by the bot
+
+> agony: <a:agony:1297571359093686323>
+
+> wave: <a:wave:1297571027303403542>
+
+> Euem: <:Euem:1293874360326815794>
+
+> Rizz: <:Rizz:1293874338239348796>
+
+> suseyes: <:suseyes:1293874326386511943>
+
+> amongus: <:amongus:1293874308338421831>
+
+> moaisus: <:moaisus:1293874277946491000>
+
 ### 🛠️ Commands Overview
 /embed
 Create detailed embedded messages with customizable titles, descriptions, and colors.
@@ -56,6 +74,24 @@ Clear the warnings of a user when they behave well
 
 /setmembercount
 Set the the name of a voice channel to the member count of a discord
+
+##### ```👋🏾 Join and leave announcements```
+
+You can customize your server join and leave announcements with these commands
+/set_join_message [message]
+
+/set_leave_message [message]
+
+/toggle_join_notifications 
+
+/toggle_leave_notifications 
+
+/set_join_channel [channel]
+
+/set_leave_channel [channel]
+
+> [!NOTE]
+> You can only use emojis that are registered by the bot, to see more info check [Custom Emojis](#😎-Custom-Emojis)
 
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
