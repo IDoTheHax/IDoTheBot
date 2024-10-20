@@ -73,17 +73,26 @@ class Hangman(commands.Cog):
         if mode.lower() == "custom":
             # Create and send a button to open the modal for the custom word input
             button = ui.Button(label="Submit Custom Word", style=discord.ButtonStyle.primary)
-            button.callback = self.custom_word_button_callback
+            button.callback = self.custom_word_button_callback(interaction.user.id)  # Pass the user ID to the callback
             view = ui.View()
             view.add_item(button)
             await interaction.response.send_message("Click the button to submit a custom word for Hangman!", view=view)
         else:
             await interaction.response.send_message("Starting a standard game of Hangman. Use `/hangman custom` for a custom word.")
 
-    async def custom_word_button_callback(self, interaction: discord.Interaction):
-        """Show a modal for inputting the custom word."""
-        modal = CustomWordModal()
-        await interaction.response.send_modal(modal)
+    def custom_word_button_callback(self, user_id):
+        """Show a modal for inputting the custom word, checking if the correct user clicked."""
+        async def callback(interaction: discord.Interaction):
+            """Handles the button click."""
+            if interaction.user.id != user_id:
+                await interaction.response.send_message("You cannot submit a custom word. This action is reserved for the user who initiated the game.", ephemeral=True)
+                return
+            
+            # If the correct user clicked the button, show the modal
+            modal = CustomWordModal()
+            await interaction.response.send_modal(modal)
+
+        return callback
 
     @app_commands.command(name='guess', description='Make a guess in the Hangman game.')
     async def make_guess(self, interaction: discord.Interaction, letter: str):
@@ -177,7 +186,6 @@ class Hangman(commands.Cog):
         await interaction.response.send_message(f"🎉 A new game of Hangman has started with the word suggested by {interaction.user.name}. You have {self.games[interaction.channel.id]['attempts']} attempts.")
         await interaction.followup.send(await self.get_game_status(self.games[interaction.channel.id]))
 
-
 class CustomWordModal(ui.Modal, title="Custom Word for Hangman"):
     """Modal to input a custom word for Hangman."""
 
@@ -188,5 +196,6 @@ class CustomWordModal(ui.Modal, title="Custom Word for Hangman"):
         hangman_cog = interaction.client.get_cog("Hangman")
         await hangman_cog.start_game_with_custom_word(interaction, self.word_input.value)
 
+# Setup function to add the cog to the bot
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
