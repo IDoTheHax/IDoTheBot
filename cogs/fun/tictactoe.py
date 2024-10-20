@@ -8,7 +8,11 @@ class TicTacToe(commands.Cog):
         self.bot = bot
         self.games = {}  # Store games by channel ID
 
-    @app_commands.command(name='tictactoe', description='Starts a new game of Tic Tac Toe.')
+    # Parent command for Tic Tac Toe
+    tictactoe_group = app_commands.Group(name='tictactoe', description='Tic Tac Toe game commands')
+
+
+    @tictactoe_group.command(name='new', description='Starts a new game of Tic Tac Toe.')
     async def start_game(self, interaction: discord.Interaction):
         """Starts a new game of Tic Tac Toe."""
         if interaction.channel.id in self.games:
@@ -21,9 +25,9 @@ class TicTacToe(commands.Cog):
             "waiting_for": interaction.user.id,  # Track whose turn it is (player starts)
         }
 
-        await interaction.response.send_message("Tic Tac Toe game started! It's your turn, X.\n" + self.display_board(self.games[interaction.channel.id]["board"]))
+        await interaction.response.send_message("Tic Tac Toe game started!\nrange from 1-9 for the numbers going from left to right from the top so 1 will be the first of the first row and 4 will be the first of the second\nIt's your turn, X.\n" + self.display_board(self.games[interaction.channel.id]["board"]))
     
-    @app_commands.command(name='move', description='Make a move in the Tic Tac Toe game.')
+    @tictactoe_group.command(name='move', description='Make a move in the Tic Tac Toe game.')
     async def make_move(self, interaction: discord.Interaction, position: int):
         """Make a move in the Tic Tac Toe game."""
         if interaction.channel.id not in self.games:

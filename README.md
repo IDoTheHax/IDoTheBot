@@ -75,6 +75,21 @@ Clear the warnings of a user when they behave well
 /setmembercount
 Set the the name of a voice channel to the member count of a discord
 
+##### ```🎮 Fun and Games```
+There are games for the discord bot that are shown downbelow
+
+- Hangman
+- Tic Tac Toe
+
+###### For Hangman:
+    Run /hangman "custom" to choose a name
+    Run /guess <letter> to guess a letter
+    Run /guessword <word> to guess the word you think it is
+
+###### For Tic Tac Toe:
+    Run /tictactoe start to start a game, this will be against the bot
+    Run /tictactoe move <number> to make a move
+
 ##### ```👋🏾 Join and leave announcements```
 
 You can customize your server join and leave announcements with these commands
