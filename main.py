@@ -284,7 +284,7 @@ async def purge(interaction: discord.Interaction, amount: int):
    #await interaction.response.send_message("WORK")
 
 @bot.tree.command(name="reload_blacklists", description="Reloads Blacklists")
-#@app_commands.checks.has_permissions(administrator=True)
+@app_commands.checks.has_permissions(administrator=True)
 async def reload_blacklists(interaction: discord.Interaction):
     global BLACKLISTED_USERS, BLACKLISTED_CHANNELS
     BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
