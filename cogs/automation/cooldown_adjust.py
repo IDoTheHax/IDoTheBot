@@ -2,11 +2,14 @@ import discord
 from discord.ext import commands, tasks
 from collections import defaultdict
 from datetime import datetime, timedelta
+import json
+import os
 
 class CooldownManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.channel_activity = defaultdict(list)  # Stores message timestamps per channel
+        self.cooldown_settings_path = 'settings/cooldown_manager.json'
         self.update_cooldown.start()  # Starts the task to check and update cooldowns
 
     def cog_unload(self):
@@ -52,6 +55,60 @@ class CooldownManager(commands.Cog):
             return 3   # Low activity -> 3 seconds cooldown
         else:
             return 0   # Very low activity -> No cooldown
+
+    async def save_cooldown_settings(self, guild_id, settings):
+        """Save the cooldown settings for the specified guild to a JSON file."""
+        try:
+            if os.path.exists(self.cooldown_settings_path):
+                with open(self.cooldown_settings_path, 'r') as f:
+                    data = json.load(f)
+            else:
+                data = {}
+
+            data[guild_id] = settings
+
+            with open(self.cooldown_settings_path, 'w') as f:
+                json.dump(data, f, indent=4)
+
+        except Exception as e:
+            print(f"Error saving cooldown settings: {e}")
+
+    def load_cooldown_settings(self, guild_id):
+        """Load the cooldown settings for the specified guild from a JSON file."""
+        try:
+            with open(self.cooldown_settings_path, 'r') as f:
+                data = json.load(f)
+                return data.get(guild_id)
+        except FileNotFoundError:
+            return None
+
+    @discord.app_commands.command(name="set_cooldown", description="Set the cooldown settings for this guild.")
+    async def set_cooldown(self, interaction: discord.Interaction, cooldown: int, threshold: int):
+        """Set the cooldown time and threshold for the guild."""
+        guild_id = str(interaction.guild.id)
+
+        settings = {
+            'cooldown': cooldown,
+            'threshold': threshold
+        }
+
+        await self.save_cooldown_settings(guild_id, settings)
+        await interaction.response.send_message(f"Cooldown settings updated:\nCooldown: {cooldown}\nThreshold: {threshold}")
+
+    @discord.app_commands.command(name="get_cooldown", description="Get the current cooldown settings for this guild.")
+    async def get_cooldown(self, interaction: discord.Interaction):
+        """Retrieve the current cooldown settings for the guild."""
+        guild_id = str(interaction.guild.id)
+        cooldown_settings = self.load_cooldown_settings(guild_id)
+
+        if cooldown_settings:
+            await interaction.response.send_message(
+                f"Current cooldown settings for this guild:\n"
+                f"Cooldown Time: {cooldown_settings['cooldown']}\n"
+                f"Threshold: {cooldown_settings['threshold']}"
+            )
+        else:
+            await interaction.response.send_message("No cooldown settings found for this guild. Please set them first.")
 
     @update_cooldown.before_loop
     async def before_update_cooldown(self):

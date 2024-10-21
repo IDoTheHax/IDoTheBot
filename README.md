@@ -90,7 +90,7 @@ There are games for the discord bot that are shown downbelow
     Run /tictactoe start to start a game, this will be against the bot
     Run /tictactoe move <number> to make a move
 
-##### ```Anti Ping```
+##### ```🛑Anti Ping```
 You can now add user ping black lists and notify that user when they are pinged
 
 ###### Commands:
