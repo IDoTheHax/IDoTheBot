@@ -83,12 +83,23 @@ class AutoMute(commands.Cog):
                 except discord.HTTPException:
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
 
-    @discord.app_commands.command(name="add_protected", description="Add a user to the protected list (for moderators)")
+    @discord.app_commands.command(name="add_protected", description="Add a user to the protected list (for administrators)")
     @commands.has_permissions(administrator=True)
     async def add_protected(self, interaction: discord.Interaction, user: discord.Member):
         """Add a user to the protected list for this guild."""
         self.add_protected_user(interaction.guild.id, user.id)
         await interaction.response.send_message(f"{user.mention} has been added to the protected list.")
+
+    @discord.app_commands.command(name="remove_protected", description="Remove a user from the protected list (for administrators).")
+    @commands.has_permissions(administrator=True)
+    async def remove_protected(self, interaction: discord.Interaction, user: discord.Member):
+        guild_id = str(interaction.guild.id)
+        if guild_id in self.protected_users and user.id in self.protected_users[guild_id]:
+            self.protected_users[guild_id].remove(user.id)
+            self.save_ping_blacklist()
+            await interaction.send(f"{user.mention} has been removed from the protected list.")
+        else:
+            await interaction.send(f"{user.mention} is not on the protected list.")
 
     @discord.app_commands.command(name="toggle_anti_ping", description="Toggle anti-ping functionality for this guild")
     @commands.has_permissions(administrator=True)

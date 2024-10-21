@@ -88,22 +88,25 @@ There are games for the discord bot that are shown downbelow
 
 ###### For Tic Tac Toe:
     Run /tictactoe start to start a game, this will be against the bot
-    Run /tictactoe move <number > to make a move
+    Run /tictactoe move <number> to make a move
+
+##### ```Anti Ping```
+You can now add user ping black lists and notify that user when they are pinged
+
+###### Commands:
+    Run /toggle_anti_ping <boolean> to toggle between enabling anti ping, requires administrator
+    Run /add_protected <user> or <userid> also requires administrator
+    Run /remove_protected <user> or <userid> still requires administrator
 
 ##### ```👋🏾 Join and leave announcements```
 
 You can customize your server join and leave announcements with these commands
-/set_join_message [message]
-
-/set_leave_message [message]
-
-/toggle_join_notifications 
-
-/toggle_leave_notifications 
-
-/set_join_channel [channel]
-
-/set_leave_channel [channel]
+    /set_join_message [message]
+    /set_leave_message [message]
+    /toggle_join_notifications 
+    /toggle_leave_notifications 
+    /set_join_channel [channel]
+    /set_leave_channel [channel]
 
 > [!NOTE]
 > You can only use emojis that are registered by the bot, to see more info check [Custom Emojis](#😎-Custom-Emojis)
