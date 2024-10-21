@@ -88,7 +88,7 @@ There are games for the discord bot that are shown downbelow
 
 ###### For Tic Tac Toe:
     Run /tictactoe start to start a game, this will be against the bot
-    Run /tictactoe move <number> to make a move
+    Run /tictactoe move <number > to make a move
 
 ##### ```👋🏾 Join and leave announcements```
 

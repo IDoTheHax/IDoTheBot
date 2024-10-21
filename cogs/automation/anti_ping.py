@@ -4,60 +4,60 @@ from datetime import timedelta
 import json
 import os
 
-MUTED_USERS = {}
-
 class AutoMute(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.mute_duration = timedelta(minutes=5)
-        self.protected_users = self.load_ping_blacklist()  # Load protected user IDs from JSON
-        self.anti_ping_enabled = self.load_anti_ping_status()  # Load anti_ping status
+        self.settings_path = 'settings/'  # Ensure this matches your settings directory
+        self.load_all_settings()
 
-    def load_ping_blacklist(self):
-        """Load the list of protected user IDs from a JSON file."""
+    def load_all_settings(self):
+        """Load all settings for protected users and anti-ping status per guild."""
+        self.protected_users = self.load_json('ping_blacklist.json')
+        self.anti_ping_status = self.load_json('config.json')
+
+    def load_json(self, filename):
+        """Load data from a JSON file."""
+        filepath = os.path.join(self.settings_path, filename)
         try:
-            with open('ping_blacklist.json', 'r') as f:
-                data = json.load(f)
-                return set(data.get('ping_blacklist', []))  # Use a set for quick lookup
+            with open(filepath, 'r') as f:
+                return json.load(f)
         except FileNotFoundError:
-            print("ping_blacklist.json not found, creating an empty list.")
-            return set()
+            print(f"{filename} not found, creating an empty structure.")
+            return {}
 
-    def load_anti_ping_status(self):
-        """Load the anti_ping status from a JSON file."""
-        try:
-            with open('config.json', 'r') as f:
-                data = json.load(f)
-                return data.get('anti_ping_enabled', True)  # Default to True if not set
-        except FileNotFoundError:
-            print("config.json not found, creating a new one with default settings.")
-            self.save_anti_ping_status(True)  # Create with default value
-            return True
+    def save_json(self, data, filename):
+        """Save data to a JSON file."""
+        filepath = os.path.join(self.settings_path, filename)
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
 
-    def save_anti_ping_status(self, status):
-        """Save the anti_ping status to a JSON file."""
-        try:
-            with open('config.json', 'r+') as f:
-                data = json.load(f)
-                data['anti_ping_enabled'] = status
-                f.seek(0)  # Move the cursor to the beginning of the file
-                json.dump(data, f, indent=4)
-                f.truncate()  # Remove leftover data from the old file size
-        except FileNotFoundError:
-            with open('config.json', 'w') as f:
-                json.dump({'anti_ping_enabled': status}, f)
+    def get_guild_settings(self, guild_id):
+        """Retrieve or initialize settings for a specific guild."""
+        guild_id_str = str(guild_id)
+        if guild_id_str not in self.protected_users:
+            self.protected_users[guild_id_str] = {"protected_users": []}
+        if guild_id_str not in self.anti_ping_status:
+            self.anti_ping_status[guild_id_str] = {"anti_ping_enabled": True}
 
-    def disable_anti_ping(self):
-        """Disable the anti-ping functionality."""
-        self.anti_ping_enabled = False
-        self.save_anti_ping_status(False)  # Save the new state
-        print("Anti-ping functionality has been disabled.")
+    def add_protected_user(self, guild_id, user_id):
+        """Add a user to the protected list for a specific guild."""
+        self.get_guild_settings(guild_id)
+        guild_id_str = str(guild_id)
+        if user_id not in self.protected_users[guild_id_str]["protected_users"]:
+            self.protected_users[guild_id_str]["protected_users"].append(user_id)
+            self.save_json(self.protected_users, 'ping_blacklist.json')
 
-    def enable_anti_ping(self):
-        """Enable the anti-ping functionality."""
-        self.anti_ping_enabled = True
-        self.save_anti_ping_status(True)  # Save the new state
-        print("Anti-ping functionality has been enabled.")
+    def is_anti_ping_enabled(self, guild_id):
+        """Check if anti-ping is enabled for a specific guild."""
+        self.get_guild_settings(guild_id)
+        return self.anti_ping_status[str(guild_id)]["anti_ping_enabled"]
+
+    def set_anti_ping(self, guild_id, status):
+        """Enable or disable anti-ping for a specific guild."""
+        self.get_guild_settings(guild_id)
+        self.anti_ping_status[str(guild_id)]["anti_ping_enabled"] = status
+        self.save_json(self.anti_ping_status, 'config.json')
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -65,13 +65,16 @@ class AutoMute(commands.Cog):
         if message.author == self.bot.user or not message.guild:
             return  # Ignore bot's own messages and DMs
 
-        if not self.anti_ping_enabled:
-            return  # Skip if anti_ping is disabled
+        if not self.is_anti_ping_enabled(message.guild.id):
+            return  # Skip if anti_ping is disabled for this guild
 
         # Check if the message mentions anyone
+        guild_id_str = str(message.guild.id)
+        protected_users = self.protected_users.get(guild_id_str, {}).get("protected_users", [])
+
         for mentioned_user in message.mentions:
             # Timeout the author for 5 minutes if they ping a protected user
-            if mentioned_user.id in self.protected_users:
+            if mentioned_user.id in protected_users:
                 try:
                     await message.author.timeout(self.mute_duration, reason="Pinging a user")
                     await message.channel.send(f"{message.author.mention} You are not allowed to ping this user.")
@@ -80,15 +83,19 @@ class AutoMute(commands.Cog):
                 except discord.HTTPException:
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
 
-    @commands.command(name="forceunmute", help="Force unmute a user before the time expires (for moderators)")
-    @commands.has_permissions(manage_messages=True)
-    async def force_unmute(self, ctx, user: discord.Member):
-        """Unmute the user manually (only for moderators)."""
-        if user.id in MUTED_USERS:
-            del MUTED_USERS[user.id]
-            await ctx.send(f"{user.mention} has been manually unmuted by {ctx.author.mention}.")
-        else:
-            await ctx.send(f"{user.mention} is not currently muted.")
+    @discord.app_commands.command(name="add_protected", description="Add a user to the protected list (for moderators)")
+    @commands.has_permissions(administrator=True)
+    async def add_protected(self, interaction: discord.Interaction, user: discord.Member):
+        """Add a user to the protected list for this guild."""
+        self.add_protected_user(interaction.guild.id, user.id)
+        await interaction.response.send_message(f"{user.mention} has been added to the protected list.")
+
+    @discord.app_commands.command(name="toggle_anti_ping", description="Toggle anti-ping functionality for this guild")
+    @commands.has_permissions(administrator=True)
+    async def toggle_anti_ping(self, interaction: discord.Interaction, status: bool):
+        """Enable or disable the anti-ping functionality for the guild."""
+        self.set_anti_ping(interaction.guild.id, status)
+        await interaction.response.send_message(f"Anti-ping functionality has been {'enabled' if status else 'disabled'}.")
 
 async def setup(bot):
     await bot.add_cog(AutoMute(bot))
