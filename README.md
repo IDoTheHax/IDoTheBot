@@ -51,6 +51,9 @@ Wait for a user to react to a message, and capture their reaction for tracking o
 /analyze and /analyse
 Search through crash report channels and quickly locate crash reports based on codes.
 
+/dehoist
+Renick users that attempt to hoist themselves, requires manage members and nicknames perms
+
 /kick
 Kick a user
 
@@ -74,7 +77,6 @@ Clear the warnings of a user when they behave well
 
 /setmembercount
 Set the the name of a voice channel to the member count of a discord
-
 ##### ```🎮 Fun and Games```
 There are games for the discord bot that are shown downbelow
 

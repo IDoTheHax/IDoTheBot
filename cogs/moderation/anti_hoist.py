@@ -6,6 +6,7 @@ class AntiHoist(commands.Cog):
         self.bot = bot
 
     @discord.app_commands.command(name="dehoist", description="Renames users with hoisting nicknames")
+    @discord.app_commands.checks.has_permissions(moderate_members=True, manage_nicknames=True)
     async def dehoist(self, interaction: discord.Interaction):
         hoisting_chars = ('!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~')
         hoisting_str = ''.join(hoisting_chars)  # Convert tuple to string
@@ -45,7 +46,7 @@ class AntiHoist(commands.Cog):
         )
 
         # Send the message back to the user using `diff` formatting
-        await interaction.response.send_message(f"```diff\n{result_message}```", ephemeral=True)
+        await interaction.response.send_message(f"```diff\n{result_message}```", ephemeral=False)
 
 async def setup(bot):
     await bot.add_cog(AntiHoist(bot))
