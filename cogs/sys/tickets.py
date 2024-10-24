@@ -34,44 +34,49 @@ class TicketButton(discord.ui.Button):
         guild = interaction.guild
         user = interaction.user
 
+        # Load guild settings to get the roles allowed and the roles to ping
+        settings = load_guild_settings(guild.id)
+        allowed_roles = settings.get("allowed_roles", [])  # Whitelisted roles
+        roles_to_ping = settings.get("roles_to_ping", [])  # Roles to ping
+        category_id = settings.get("category_id")
+
         # Check if a ticket channel already exists for the user
         existing_channel = discord.utils.get(guild.text_channels, name=f"{self.topic}-ticket-{user.name.lower()}")
         if existing_channel:
             await interaction.response.send_message(f"You already have a ticket open: {existing_channel.mention}", ephemeral=True)
             return
 
-        # Create the ticket channel
-        settings = load_guild_settings(guild.id)
-        category_id = settings.get("category_id")
-        category = discord.utils.get(guild.categories, id=category_id) if category_id else None
-
-        allowed_roles = settings.get("allowed_roles", [])
-        role_overwrites = {guild.default_role: discord.PermissionOverwrite(view_channel=False)}
-        for role_id in allowed_roles:
-            role = guild.get_role(role_id)
-            if role:
-                role_overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
-
+        # Create the ticket channel and set permissions
         overwrites = {
-            **role_overwrites,
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
             user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
             guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True),
         }
 
+        # Add overwrites for allowed roles (if any)
+        for role_id in allowed_roles:
+            role = guild.get_role(role_id)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(view_channel=True)
+        
+        category = discord.utils.get(guild.categories, id=category_id) if category_id else None
+
+        # Create the ticket channel
         ticket_channel = await guild.create_text_channel(
             name=f"{self.topic}-ticket-{user.name.lower()}",
-            category=category,
             topic=self.topic,
-            overwrites=overwrites
+            overwrites=overwrites,
+            category=category
         )
 
-        # Generate the mention string for all whitelisted roles
-        role_mentions = ' '.join([f"<@&{role_id}>" for role_id in allowed_roles if guild.get_role(role_id)])
+        # Send a message in the ticket channel with pings for specific roles
+        if roles_to_ping:
+            role_mentions = [guild.get_role(role_id).mention for role_id in roles_to_ping if guild.get_role(role_id)]
+            await ticket_channel.send(f"{user.mention}, welcome to your ticket! {' '.join(role_mentions)} will assist you shortly.")
+        else:
+            await ticket_channel.send(f"{user.mention}, welcome to your ticket! Staff will assist you shortly.")
 
         await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
-        
-        # Send a message in the ticket channel mentioning the whitelisted roles and the user
-        await ticket_channel.send(f"{user.mention}, welcome to your ticket! {role_mentions}, please assist as needed.")
 
 # Define the view for the buttons
 class TicketView(discord.ui.View):
@@ -157,6 +162,19 @@ class TicketSystem(commands.Cog):
         save_guild_settings(interaction.guild.id, settings)
 
         await interaction.response.send_message("Allowed roles for ticket channels have been set.", ephemeral=True)
+    
+    @app_commands.command(name="set_roles_to_ping", description="Set the roles to ping when a ticket is created")
+    @commands.has_permissions(administrator=True)
+    async def set_roles_to_ping(self, interaction: discord.Interaction, roles: str):
+        """Set the roles that should be pinged when a ticket is created (comma-separated role IDs)."""
+        settings = load_guild_settings(interaction.guild.id)
+        role_ids = [int(role_id.strip()) for role_id in roles.split(',')]
+
+        # Save the role IDs to ping in the settings
+        settings["roles_to_ping"] = role_ids
+        save_guild_settings(interaction.guild.id, settings)
+
+        await interaction.response.send_message(f"Roles to ping set: {roles}", ephemeral=True)
 
     @app_commands.command(name="place_ticket_buttons", description="Attach ticket buttons to a specific message")
     @commands.has_permissions(administrator=True)
@@ -200,8 +218,8 @@ class TicketSystem(commands.Cog):
     async def close_ticket(self, interaction: discord.Interaction):
         """Command to close the ticket channel."""
         if "ticket" in interaction.channel.name:  # Check if "ticket" is anywhere in the channel name
-            await interaction.channel.delete(reason="Ticket closed")
-            await interaction.response.send_message("Ticket closed and channel deleted.", ephemeral=True)
+            # TODO: Dm the user with the log and maybe send a log in moderator only?
+            await interaction.channel.delete(reason="Ticket closed")   
         else:
             await interaction.response.send_message("This is not a ticket channel.", ephemeral=True)
 
