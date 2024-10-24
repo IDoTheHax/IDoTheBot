@@ -34,7 +34,7 @@ class MemberCount(commands.Cog):
         member_count = ctx.guild.member_count
         await channel.edit(name=f"Members: {member_count}")
 
-        await ctx.send(f"Member count channel set to: {channel.name}")
+        await ctx.send_message(f"Member count channel set to: {channel.name}")
 
     async def update_member_count_for_guild(self, guild):
         """Update the member count channel for a specific guild."""
