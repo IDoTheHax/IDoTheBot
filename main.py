@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
+from cogs.sys.tickets import TicketView
 import datetime as dt
 import requests
 import json
@@ -50,6 +51,11 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
     
     await load_cogs()
+    # Register the view for each guild the bot is in
+    for guild in bot.guilds:
+        view = TicketView(guild.id)
+        bot.add_view(view)
+    print(f"Views have been registered for {len(bot.guilds)} guilds.")
 
     try:
         #BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')

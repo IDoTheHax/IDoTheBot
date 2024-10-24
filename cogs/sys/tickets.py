@@ -65,8 +65,13 @@ class TicketButton(discord.ui.Button):
             overwrites=overwrites
         )
 
+        # Generate the mention string for all whitelisted roles
+        role_mentions = ' '.join([f"<@&{role_id}>" for role_id in allowed_roles if guild.get_role(role_id)])
+
         await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
-        await ticket_channel.send(f"{user.mention}, welcome to your ticket! Staff will assist you shortly.")
+        
+        # Send a message in the ticket channel mentioning the whitelisted roles and the user
+        await ticket_channel.send(f"{user.mention}, welcome to your ticket! {role_mentions}, please assist as needed.")
 
 # Define the view for the buttons
 class TicketView(discord.ui.View):
@@ -96,7 +101,7 @@ class TicketView(discord.ui.View):
 class TicketSystem(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
+    
     @app_commands.command(name="ticket", description="Open the ticket panel")
     async def ticket(self, interaction: discord.Interaction):
         """Send the ticket system panel with buttons."""
@@ -194,11 +199,12 @@ class TicketSystem(commands.Cog):
     @app_commands.command(name="close_ticket", description="Close the current ticket")
     async def close_ticket(self, interaction: discord.Interaction):
         """Command to close the ticket channel."""
-        if interaction.channel.name.startswith("ticket-"):
+        if "ticket" in interaction.channel.name:  # Check if "ticket" is anywhere in the channel name
             await interaction.channel.delete(reason="Ticket closed")
             await interaction.response.send_message("Ticket closed and channel deleted.", ephemeral=True)
         else:
             await interaction.response.send_message("This is not a ticket channel.", ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(TicketSystem(bot))
