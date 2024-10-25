@@ -116,7 +116,7 @@ You can customize your server join and leave announcements with these commands
 ##### ```🎫 Tickets```
 
 Im too lazy to write so i have an image here
-[tickets](image.png)
+[tickets](tickets.png)
 
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
