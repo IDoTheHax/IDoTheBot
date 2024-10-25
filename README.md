@@ -115,8 +115,9 @@ You can customize your server join and leave announcements with these commands
 
 ##### ```🎫 Tickets```
 
-Im too lazy to write so i have an image here
-[tickets](tickets.png)
+Im too lazy to write so i have an image with all the commands here
+
+![tickets](https://github.com/IDoTheHax/IDoTheBot/blob/main/tickets.png?raw=true)
 
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
