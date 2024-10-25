@@ -113,6 +113,11 @@ You can customize your server join and leave announcements with these commands
 > [!NOTE]
 > You can only use emojis that are registered by the bot, to see more info check [Custom Emojis](#😎-Custom-Emojis)
 
+##### ```🎫 Tickets```
+
+Im too lazy to write so i have an image here
+[tickets](image.png)
+
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
 Use the commands right away in any channel or set up permissions to control which users or roles can access each feature.
