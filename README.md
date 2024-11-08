@@ -45,6 +45,9 @@ Edit embed by their message id, changing its title, description, and color.
 /github
 Retrieve and display details about any GitHub repository, including stats like stars and forks.
 
+/mrmodrinth
+Retrieve and display details about any mod, including stats like versions, environment, downloads and more
+
 /react
 Wait for a user to react to a message, and capture their reaction for tracking or fun interactions.
 
