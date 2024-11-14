@@ -45,6 +45,9 @@ Edit embed by their message id, changing its title, description, and color.
 /github
 Retrieve and display details about any GitHub repository, including stats like stars and forks.
 
+/mrmodrinth
+Retrieve and display details about any mod, including stats like versions, environment, downloads and more
+
 /react
 Wait for a user to react to a message, and capture their reaction for tracking or fun interactions.
 
@@ -115,8 +118,9 @@ You can customize your server join and leave announcements with these commands
 
 ##### ```🎫 Tickets```
 
-Im too lazy to write so i have an image here
-[tickets](image.png)
+Im too lazy to write so i have an image with all the commands here
+
+![tickets](https://github.com/IDoTheHax/IDoTheBot/blob/main/tickets.png?raw=true)
 
 ### 💻 How to Use
 Invite the bot to your Discord server using this link.
