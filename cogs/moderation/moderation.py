@@ -80,6 +80,38 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message(f"I don't have permission to kick {member.mention}.", ephemeral=True)
 
+    @app_commands.command(name="lock_channel", description="Lock the channel so only admins can talk")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def lock_channel(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        if channel is None:
+            channel = interaction.channel
+
+        everyone_role = interaction.guild.default_role
+                
+        # Set the permissions so that @everyone cannot send messages in the channel
+        await channel.set_permissions(everyone_role, send_messages=False)
+
+        # Set the permissions so that the server admins can still send messages
+        for role in interaction.guild.roles:
+            if role.permissions.administrator:
+                await channel.set_permissions(role, send_messages=True)
+
+        await interaction.response.send_message(f"The channel {channel.mention} has been locked. Only admins can send messages.")
+
+    @app_commands.command(name="unlock_channel", description="Unlock the channel so everyone can talk")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def unlock_channel(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        if channel is None:
+            channel = interaction.channel
+        guild = interaction.guild  # Access the guild from the interaction object
+        everyone_role = guild.default_role  # @everyone role
+
+        # Unlock the channel for @everyone
+        await channel.set_permissions(everyone_role, send_messages=True)
+
+        # Respond to the interaction
+        await interaction.response.send_message(f"The channel {channel.mention} has been unlocked. Everyone can now send messages.")
+
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
