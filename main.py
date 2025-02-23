@@ -9,6 +9,8 @@ import json
 import os
 from dotenv import load_dotenv
 
+
+
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
 
 # Load environment variables from the .env file
