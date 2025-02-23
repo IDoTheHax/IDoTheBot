@@ -3,6 +3,26 @@ from discord.ext import commands
 import json
 import asyncio
 
+'''
+        
+                            [ THE BLACKLIST ]                           
+
+The Blacklist is a tool used by IDoTheBot to automatically remove members
+from a discord that have been identified to be problematic, designed for use
+in minecraft communities this bot creates and reads through a list of Discord 
+user IDs that are authorized to use the blacklist command.
+        
+Only users with these IDs will be able to execute the blacklist functionality.
+Add or remove IDs as needed to manage access to this sensitive command.
+
+This is a Very Powerfull command as it bannishes members from all the discords
+where IDoTheBot Is Present, an advantage with keeping the bot open source is
+that the blacklisted users and those who are able to edit the blacklist are 
+open for view by anyone, a flawless system that allows for protection from bad
+actors, any updates to this code will have to go through @IDoTheHax on discord
+before changes are made.
+
+'''
 class Blacklist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -10,6 +30,8 @@ class Blacklist(commands.Cog):
         self.config_file = "data/config.json"
         self.load_banned_users()
         self.load_config()
+        
+        self.AUTHORIZED_USERS = [987323487343493191, 1088268266499231764, 726721909374320640, 710863981039845467, 1151136371164065904]
 
     def load_banned_users(self):
         try:
@@ -43,8 +65,12 @@ class Blacklist(commands.Cog):
             await member.ban(reason="User is blacklisted")
 
     @commands.command()
-    @commands.has_permissions(administrator=True)
     async def blacklist(self, ctx, user_id: int):
+        if ctx.author.id not in AUTHORIZED_USERS:
+            await ctx.send("You are not authorized to use this command.")
+            return
+
+        # Rest of the existing command code
         user = await self.bot.fetch_user(user_id)
         if not user:
             await ctx.send("User not found.")
