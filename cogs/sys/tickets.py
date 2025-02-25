@@ -114,28 +114,6 @@ class TicketSystem(commands.Cog):
         save_guild_settings(interaction.guild.id, settings)
         await interaction.response.send_message(f"Ticket button '{label}' added for the topic '{topic}'.", ephemeral=True)
     
-    @tickets.command(name="remove_button", description="Remove an existing ticket button")
-    @commands.has_permissions(administrator=True)
-    async def remove_ticket_button(self, interaction: discord.Interaction, custom_id: str):
-        settings = load_guild_settings(interaction.guild.id)
-
-        if "tickets" not in settings or not settings["tickets"]:
-            await interaction.response.send_message("No ticket buttons are set up yet.", ephemeral=True)
-            return
-
-        # Find ticket button with custom_id
-        ticket = next((ticket for ticket in settings["tickets"] if ticket["custom_id"] == custom_id), None)
-    
-        if not ticket:
-            await interaction.response.send_message(f"No ticket button found with the custom ID '{custom_id}'.", ephemeral=True)
-            return
-
-        # Remove the button from settings
-        settings["tickets"].remove(ticket)
-        save_guild_settings(interaction.guild.id, settings)
-
-        await interaction.response.send_message(f"Ticket button with custom ID '{custom_id}' has been removed.", ephemeral=True)
-
     @tickets.command(name="set_category", description="Set the category for ticket channels")
     @commands.has_permissions(administrator=True)
     async def set_ticket_category(self, interaction: discord.Interaction, category: discord.CategoryChannel):
@@ -179,10 +157,48 @@ class TicketSystem(commands.Cog):
         view = TicketView(interaction.guild.id)
         sent_message = await interaction.channel.send(content=message_content, view=view)
 
+        # Save the message ID in the settings
+        settings = load_guild_settings(interaction.guild.id)
+        settings["ticket_buttons_message_id"] = sent_message.id
+        save_guild_settings(interaction.guild.id, settings)
+
         for attachment in message_attachments:
             await interaction.channel.send(file=await attachment.to_file())
 
         await interaction.response.send_message(f"Ticket buttons have been placed under the new message with ID {sent_message.id}.", ephemeral=True)
+
+    @tickets.command(name="remove_button", description="Remove an existing ticket button")
+    @commands.has_permissions(administrator=True)
+    async def remove_ticket_button(self, interaction: discord.Interaction, custom_id: str):
+        settings = load_guild_settings(interaction.guild.id)
+
+        # Check if "tickets" key exists
+        if "tickets" not in settings or not settings["tickets"]:
+            await interaction.response.send_message("No ticket buttons are set up yet.", ephemeral=True)
+            return
+
+        # Find the ticket button with the given custom_id
+        ticket = next((ticket for ticket in settings["tickets"] if ticket["custom_id"] == custom_id), None)
+        
+        if not ticket:
+            await interaction.response.send_message(f"No ticket button found with the custom ID '{custom_id}'.", ephemeral=True)
+            return
+
+        # Remove the ticket button from the settings
+        settings["tickets"].remove(ticket)
+        save_guild_settings(interaction.guild.id, settings)
+
+        await interaction.response.send_message(f"Ticket button with custom ID '{custom_id}' has been removed.", ephemeral=True)
+
+        # Refresh message that had the button, if needed
+        view = TicketView(interaction.guild.id)
+        message_id = settings.get("ticket_buttons_message_id")  # Assume this is saved in the settings
+        if message_id:
+            try:
+                message = await interaction.channel.fetch_message(message_id)
+                await message.edit(view=view)  # Update the message with the new buttons
+            except discord.NotFound:
+                await interaction.response.send_message("Could not find the message with the ticket buttons.", ephemeral=True)
 
     @tickets.command(name="close", description="Close the current ticket")
     async def close_ticket(self, interaction: discord.Interaction):
