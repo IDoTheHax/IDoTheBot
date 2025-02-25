@@ -113,6 +113,28 @@ class TicketSystem(commands.Cog):
         })
         save_guild_settings(interaction.guild.id, settings)
         await interaction.response.send_message(f"Ticket button '{label}' added for the topic '{topic}'.", ephemeral=True)
+    
+    @tickets.command(name="remove_button", description="Remove an existing ticket button")
+    @commands.has_permissions(administrator=True)
+    async def remove_ticket_button(self, interaction: discord.Interaction, custom_id: str):
+        settings = load_guild_settings(interaction.guild.id)
+
+        if "tickets" not in settings or not settings["tickets"]:
+            await interaction.response.send_message("No ticket buttons are set up yet.", ephemeral=True)
+            return
+
+        # Find ticket button with custom_id
+        ticket = next((ticket for ticket in settings["tickets"] if ticket["custom_id"] == custom_id), None)
+    
+        if not ticket:
+            await interaction.response.send_message(f"No ticket button found with the custom ID '{custom_id}'.", ephemeral=True)
+            return
+
+        # Remove the button from settings
+        settings["tickets"].remove(ticket)
+        save_guild_settings(interaction.guild.id, settings)
+
+        await interaction.response.send_message(f"Ticket button with custom ID '{custom_id}' has been removed.", ephemeral=True)
 
     @tickets.command(name="set_category", description="Set the category for ticket channels")
     @commands.has_permissions(administrator=True)
