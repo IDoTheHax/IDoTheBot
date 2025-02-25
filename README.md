@@ -116,6 +116,14 @@ You can customize your server join and leave announcements with these commands
 > [!NOTE]
 > You can only use emojis that are registered by the bot, to see more info check [Custom Emojis](#😎-Custom-Emojis)
 
+##### ```↩️ Auto Response```
+Have people that frequently ask the same questions, use keywords with the autoresponder
+to create automated messages
+
+###### Commands:
+    Create Autoresponder /autoresponse create [trigger] [response]
+    Remove Autoresponder /autoresponse remove
+
 ##### ```🎫 Tickets```
 
 Im too lazy to write so i have an image with all the commands here
