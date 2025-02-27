@@ -68,13 +68,15 @@ class AutoMute(commands.Cog):
                 except discord.HTTPException:
                     await message.channel.send(f"Failed to mute {message.author.mention} due to an error.")
 
-    @discord.app_commands.command(name="add_protected")
+    anti_ping = app_commands.Group(name="anti_ping", description="Manage anti-ping settings")
+
+    @anti_ping.command(name="add_protected")
     @commands.has_permissions(administrator=True)
     async def add_protected(self, interaction: discord.Interaction, user: discord.Member):
         self.add_protected_user(interaction.guild.id, user.id)
         await interaction.response.send_message(f"{user.mention} has been added to the protected list.")
 
-    @discord.app_commands.command(name="remove_protected")
+    @anti_ping.command(name="remove_protected")
     @commands.has_permissions(administrator=True)
     async def remove_protected(self, interaction: discord.Interaction, user: discord.Member):
         guild_id = str(interaction.guild.id)
@@ -85,7 +87,7 @@ class AutoMute(commands.Cog):
         else:
             await interaction.send(f"{user.mention} is not on the protected list.")
 
-    @discord.app_commands.command(name="toggle_anti_ping")
+    @anti_ping.command(name="toggle_anti_ping")
     @commands.has_permissions(administrator=True)
     async def toggle_anti_ping(self, interaction: discord.Interaction, status: bool):
         self.set_anti_ping(interaction.guild.id, status)
