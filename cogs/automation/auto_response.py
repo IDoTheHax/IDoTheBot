@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import json
+import re
 from pathlib import Path
 
 # Path to the directory where autoresponse settings will be stored
@@ -33,7 +34,7 @@ class AutoResponseCog(commands.Cog):
 
     @autoresponse.command(name="create", description="Create an auto-response")
     @commands.has_permissions(manage_messages=True)
-    async def create_autoresponse(self, interaction: discord.Interaction, trigger: str, response: str):
+    async def create_autoresponse(self, interaction: discord.Interaction, trigger: str, response: str, is_regex: bool = False):
         """Create a new auto-response."""
         settings = load_autoresponse_settings()
 
@@ -43,11 +44,11 @@ class AutoResponseCog(commands.Cog):
             return
 
         # Add the new auto-response
-        new_response = {"trigger": trigger, "response": response}
+        new_response = {"trigger": trigger, "response": response, "is_regex": is_regex}
         settings.setdefault("responses", []).append(new_response)
         save_autoresponse_settings(settings)
 
-        await interaction.response.send_message(f"Auto-response created for trigger '{trigger}'.", ephemeral=True)
+        await interaction.response.send_message(f"Auto-response created for trigger '{trigger}' (Regex: {is_regex}).", ephemeral=True)
 
     @autoresponse.command(name="remove", description="Remove an auto-response")
     @commands.has_permissions(manage_messages=True)
@@ -72,17 +73,25 @@ class AutoResponseCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Listen for messages and respond with the appropriate auto-response."""
-        # Ensure the bot does not respond to itself
         if message.author == self.bot.user:
             return
 
         settings = load_autoresponse_settings()
         responses = settings.get("responses", [])
 
-        # Check if there's an auto-response for the message content
         for response in responses:
-            if message.content == response["trigger"]:
-                await message.reply(response["response"])
+            trigger = response["trigger"]
+            is_regex = response.get("is_regex", False)
+
+            if is_regex:
+                if re.search(trigger, message.content, re.IGNORECASE):
+                    await message.reply(response["response"])
+                    break
+            else:
+                if message.content.lower() == trigger.lower():
+                    await message.reply(response["response"])
+                    break
+
 
 async def setup(bot):
     await bot.add_cog(AutoResponseCog(bot))

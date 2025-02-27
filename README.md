@@ -124,6 +124,10 @@ to create automated messages
     Create Autoresponder /autoresponse create [trigger] [response]
     Remove Autoresponder /autoresponse remove
 
+You can also now have regex support, for example hi, hello or hey will give the same response
+
+    /autoresponse create trigger:"h(i|ello|ey)" response:"Hello there!" is_regex:True
+
 ##### ```🎫 Tickets```
 
 Im too lazy to write so i have an image with all the commands here
