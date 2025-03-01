@@ -5,21 +5,6 @@ import aiohttp
 import asyncio
 import re
 
-CORRECT_FORMAT = """Please use the following format in your thread description:
-
-Discord username:
-Discord user ID:
-Minecraft username (if applicable):
-Minecraft UUID (if applicable):
-Reason:
-
-Example:
-Discord username: JohnDoe#1234
-Discord user ID: 123456789012345678
-Minecraft username: JohnDoe123
-Minecraft UUID: 550e8400-e29b-41d4-a716-446655440000
-Reason: Griefing and using hacks"""
-
 class ConfirmButton(ui.View):
     def __init__(self, cog, blacklist_data):
         super().__init__()
@@ -79,6 +64,29 @@ class Blacklist(commands.Cog):
         self.bot = bot
         self.AUTHORIZED_USERS = [987323487343493191, 1088268266499231764, 726721909374320640, 710863981039845467, 1151136371164065904]
 
+    def get_correct_format_embed(self):
+        embed = discord.Embed(title="Correct Blacklist Request Format", color=discord.Color.blue())
+        embed.description = "Please use the following format in your thread description:"
+        
+        format_text = """
+    Discord username:
+    Discord user ID:
+    Minecraft username (if applicable):
+    Minecraft UUID (if applicable):
+    Reason:"""
+        embed.add_field(name="Format", value=f"```" + format_text + "```", inline=False)
+        
+        example = """
+    Discord username: JohnDoe#1234
+    Discord user ID: 123456789012345678
+    Minecraft username: JohnDoe123
+    Minecraft UUID: 550e8400-e29b-41d4-a716-446655440000
+    Reason: Griefing and using hacks"""
+        embed.add_field(name="Example", value=f"```" + example + "```", inline=False)
+        
+        return embed
+
+
     @commands.Cog.listener()
     async def on_member_join(self, member):
         async with aiohttp.ClientSession() as session:
@@ -96,7 +104,8 @@ class Blacklist(commands.Cog):
             blacklist_data = self.parse_blacklist_request(starter_message.content)
             
             if not blacklist_data:
-                await thread.send(f"Invalid blacklist request format. Please use the correct format:\n\n{CORRECT_FORMAT}")
+                correct_format_embed = self.get_correct_format_embed()
+                await thread.send(embed=correct_format_embed)
                 return
 
             embed = discord.Embed(title="Blacklist Application", color=discord.Color.orange())
@@ -110,6 +119,7 @@ class Blacklist(commands.Cog):
 
             view = ConfirmButton(self, blacklist_data)
             await thread.send(embed=embed, view=view)
+
 
     def parse_blacklist_request(self, content):
         # First, try to extract Discord username and ID from the thread title
