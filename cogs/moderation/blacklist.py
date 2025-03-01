@@ -13,12 +13,11 @@ class ConfirmButton(ui.View):
 
     @ui.button(label='Confirm Blacklist', style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: ui.Button):
-        if interaction.user.id not in self.cog.AUTHORIZED_USERS:
-            await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
-            return
-
+        blacklist_data = self.blacklist_data
+        blacklist_data['auth_id'] = interaction.user.id  # Add auth_id to blacklist_data
+        
         async with aiohttp.ClientSession() as session:
-            async with session.post('http://localhost:5000/blacklist', json=self.blacklist_data) as response:
+            async with session.post('http://localhost:5000/blacklist', json=blacklist_data) as response:
                 if response.status != 200:
                     await interaction.response.send_message("Failed to blacklist user.", ephemeral=True)
                     return
@@ -62,7 +61,6 @@ class ConfirmButton(ui.View):
 class Blacklist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.AUTHORIZED_USERS = [987323487343493191, 1088268266499231764, 726721909374320640, 710863981039845467, 1151136371164065904]
 
     def get_correct_format_embed(self):
         embed = discord.Embed(title="Correct Blacklist Request Format", color=discord.Color.blue())
@@ -85,7 +83,6 @@ class Blacklist(commands.Cog):
         embed.add_field(name="Example", value=f"```" + example + "```", inline=False)
         
         return embed
-
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
