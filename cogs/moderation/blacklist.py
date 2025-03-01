@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-import json
+import aiohttp
 import asyncio
 
 '''
@@ -39,14 +39,19 @@ class ConfirmButton(ui.View):
 
         user_id = str(self.user_id)
         user = await self.cog.bot.fetch_user(int(user_id))
-        display_name = user.display_name  # This gets the user's display name
+        display_name = user.display_name
 
-        self.cog.banned_users[user_id] = {
-            "reason": self.reason,
-            "timestamp": discord.utils.utcnow().isoformat(),
-            "display_name": display_name
-        }
-        self.cog.save_banned_users()
+        # Use API to blacklist user
+        async with aiohttp.ClientSession() as session:
+            async with session.post('http://localhost:5000/blacklist', json={
+                'auth_id': interaction.user.id,
+                'user_id': user_id,
+                'reason': self.reason,
+                'display_name': display_name
+            }) as response:
+                if response.status != 200:
+                    await interaction.response.send_message("Failed to blacklist user.", ephemeral=True)
+                    return
 
         mutual_servers = [guild.name for guild in self.cog.bot.guilds if guild.get_member(int(user_id))]
         
@@ -81,61 +86,25 @@ class ConfirmButton(ui.View):
 class Blacklist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.banned_users_file = "data/banned_users.json"
-        self.config_file = "data/config.json"
-        self.load_banned_users()
-        self.load_config()
-        
         self.AUTHORIZED_USERS = [987323487343493191, 1088268266499231764, 726721909374320640, 710863981039845467, 1151136371164065904]
-
-    def load_banned_users(self):
-        try:
-            with open(self.banned_users_file, "r") as f:
-                self.banned_users = json.load(f)
-        except FileNotFoundError:
-            self.banned_users = {}
-
-    def save_banned_users(self):
-        with open(self.banned_users_file, "w") as f:
-            json.dump(self.banned_users, f, indent=4)
-
-    def load_config(self):
-        try:
-            with open(self.config_file, "r") as f:
-                self.config = json.load(f)
-        except FileNotFoundError:
-            self.config = {}
-
-    def save_config(self):
-        with open(self.config_file, "w") as f:
-            json.dump(self.config, f, indent=4)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if str(member.id) in self.banned_users:
-            await member.ban(reason="User is blacklisted")
-
-    @app_commands.command()
-    async def setforumchannel(self, interaction: discord.Interaction, channel: discord.ForumChannel):
-        if interaction.user.id not in self.AUTHORIZED_USERS:
-            await interaction.response.send_message("You are not authorized to use this command.")
-            return
-        
-        self.config["forum_channel_id"] = channel.id
-        self.save_config()
-        await interaction.response.send_message(f"Forum channel for blacklist applications has been set to {channel.mention}")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'http://localhost:5000/check_blacklist/{member.id}') as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data['blacklisted']:
+                        await member.ban(reason="User is blacklisted")
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
-        forum_channel_id = self.config.get("forum_channel_id")
-        if forum_channel_id and thread.parent_id == forum_channel_id:
+        if isinstance(thread.parent, discord.ForumChannel):
             try:
-                # Split the thread name and extract username and user ID
                 thread_name_parts = thread.name.split('(')
                 username = thread_name_parts[0].strip()
                 user_id = thread_name_parts[1].strip(')')
                 
-                # Fetch the user
                 user = await self.bot.fetch_user(int(user_id))
                 if user:
                     await self.send_blacklist_application(thread, user)
