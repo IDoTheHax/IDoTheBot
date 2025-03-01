@@ -3,33 +3,28 @@ from discord import app_commands, ui
 from discord.ext import commands
 import aiohttp
 import asyncio
+import re
 
-'''
-        
-                            [ THE BLACKLIST ]                           
+CORRECT_FORMAT = """Please use the following format in your thread description:
 
-The Blacklist is a tool used by IDoTheBot to automatically remove members
-from a discord that have been identified to be problematic, designed for use
-in minecraft communities this bot creates and reads through a list of Discord 
-user IDs that are authorized to use the blacklist command.
-        
-Only users with these IDs will be able to execute the blacklist functionality.
-Add or remove IDs as needed to manage access to this sensitive command.
+Discord username:
+Discord user ID:
+Minecraft username (if applicable):
+Minecraft UUID (if applicable):
+Reason:
 
-This is a Very Powerfull command as it bannishes members from all the discords
-where IDoTheBot Is Present, an advantage with keeping the bot open source is
-that the blacklisted users and those who are able to edit the blacklist are 
-open for view by anyone, a flawless system that allows for protection from bad
-actors, any updates to this code will have to go through @IDoTheHax on discord
-before changes are made.
+Example:
+Discord username: JohnDoe#1234
+Discord user ID: 123456789012345678
+Minecraft username: JohnDoe123
+Minecraft UUID: 550e8400-e29b-41d4-a716-446655440000
+Reason: Griefing and using hacks"""
 
-'''
 class ConfirmButton(ui.View):
-    def __init__(self, cog, user_id, reason):
+    def __init__(self, cog, blacklist_data):
         super().__init__()
         self.cog = cog
-        self.user_id = user_id
-        self.reason = reason
+        self.blacklist_data = blacklist_data
 
     @ui.button(label='Confirm Blacklist', style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: ui.Button):
@@ -37,25 +32,19 @@ class ConfirmButton(ui.View):
             await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
             return
 
-        user_id = str(self.user_id)
-        user = await self.cog.bot.fetch_user(int(user_id))
-        display_name = user.display_name
-
-        # Use API to blacklist user
         async with aiohttp.ClientSession() as session:
-            async with session.post('http://localhost:5000/blacklist', json={
-                'auth_id': interaction.user.id,
-                'user_id': user_id,
-                'reason': self.reason,
-                'display_name': display_name
-            }) as response:
+            async with session.post('http://localhost:5000/blacklist', json=self.blacklist_data) as response:
                 if response.status != 200:
                     await interaction.response.send_message("Failed to blacklist user.", ephemeral=True)
                     return
 
+        user_id = self.blacklist_data['discord_user_id']
+        reason = self.blacklist_data['reason']
+        
+        user = await self.cog.bot.fetch_user(int(user_id))
         mutual_servers = [guild.name for guild in self.cog.bot.guilds if guild.get_member(int(user_id))]
         
-        dm_message = f"Hello {display_name},\n\nYou have been blacklisted for the following reason: {self.reason}\n\n"
+        dm_message = f"Hello {user.display_name},\n\nYou have been blacklisted for the following reason: {reason}\n\n"
         dm_message += "You were a member of the following servers:\n"
         dm_message += "\n".join(mutual_servers) if mutual_servers else "No mutual servers found."
 
@@ -69,12 +58,14 @@ class ConfirmButton(ui.View):
             member = guild.get_member(int(user_id))
             if member:
                 try:
-                    await member.kick(reason=f"Blacklisted: {self.reason}")
+                    await member.kick(reason=f"Blacklisted: {reason}")
                     kicked_servers.append(guild.name)
                 except discord.Forbidden:
                     pass
 
         kick_message = f"User {user_id} has been blacklisted and kicked from the following servers:\n" + "\n".join(kicked_servers) if kicked_servers else f"User {user_id} has been blacklisted, but couldn't be kicked from any servers."
+        if self.blacklist_data.get('minecraft_username') or self.blacklist_data.get('minecraft_uuid'):
+            kick_message += f"\nMinecraft info: Username: {self.blacklist_data.get('minecraft_username', 'N/A')}, UUID: {self.blacklist_data.get('minecraft_uuid', 'N/A')}"
         await interaction.response.edit_message(content=kick_message, view=None)
         self.stop()
 
@@ -100,33 +91,55 @@ class Blacklist(commands.Cog):
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
         if isinstance(thread.parent, discord.ForumChannel):
-            try:
-                thread_name_parts = thread.name.split('(')
-                username = thread_name_parts[0].strip()
-                user_id = thread_name_parts[1].strip(')')
-                
-                user = await self.bot.fetch_user(int(user_id))
-                if user:
-                    await self.send_blacklist_application(thread, user)
-                else:
-                    await thread.send("Invalid user ID. Please use the format 'Username (userid)'.")
-            except (ValueError, IndexError):
-                await thread.send("Invalid thread name format. Please use 'Username (userid)' format.")
+            await asyncio.sleep(1)  # Wait for the initial message to be posted
+            starter_message = await thread.fetch_message(thread.id)
+            blacklist_data = self.parse_blacklist_request(starter_message.content)
+            
+            if not blacklist_data:
+                await thread.send(f"Invalid blacklist request format. Please use the correct format:\n\n{CORRECT_FORMAT}")
+                return
 
-    async def send_blacklist_application(self, thread, user):
-        mutual_servers = [guild for guild in self.bot.guilds if guild.get_member(user.id)]
+            embed = discord.Embed(title="Blacklist Application", color=discord.Color.orange())
+            embed.add_field(name="Discord Username", value=blacklist_data['discord_username'], inline=False)
+            embed.add_field(name="Discord User ID", value=blacklist_data['discord_user_id'], inline=False)
+            embed.add_field(name="Reason", value=blacklist_data['reason'], inline=False)
+            if blacklist_data.get('minecraft_username'):
+                embed.add_field(name="Minecraft Username", value=blacklist_data['minecraft_username'], inline=False)
+            if blacklist_data.get('minecraft_uuid'):
+                embed.add_field(name="Minecraft UUID", value=blacklist_data['minecraft_uuid'], inline=False)
+
+            view = ConfirmButton(self, blacklist_data)
+            await thread.send(embed=embed, view=view)
+
+    def parse_blacklist_request(self, content):
+        # First, try to extract Discord username and ID from the thread title
+        match = re.match(r'(.*?)\s*\((\d+)\)', content.split('\n')[0])
+        data = {}
+        if match:
+            data['discord_username'] = match.group(1).strip()
+            data['discord_user_id'] = match.group(2)
         
-        embed = discord.Embed(title="Blacklist Application", color=discord.Color.orange())
-        embed.add_field(name="Username", value=str(user), inline=False)
-        embed.add_field(name="User ID", value=user.id, inline=False)
-        embed.add_field(name="Mutual Servers", value="\n".join([guild.name for guild in mutual_servers]) or "None", inline=False)
-        embed.set_thumbnail(url=user.avatar.url)
-
-        reason = thread.starter_message.content if thread.starter_message else "No reason provided"
-        embed.add_field(name="Reason", value=reason, inline=False)
-
-        view = ConfirmButton(self, user.id, reason)
-        await thread.send(embed=embed, view=view)
+        # Then, look for additional information in the description
+        lines = content.split('\n')
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip().lower().replace(' ', '_')
+                value = value.strip()
+                if key in ['discord_username', 'discord_user_id', 'minecraft_username', 'minecraft_uuid']:
+                    data[key] = value
+        
+        # Extract reason (assuming it's everything after the structured data)
+        reason_start = content.find('reason:', content.rfind('uuid:') + 1)
+        if reason_start == -1:
+            reason_start = content.find('reason:', content.rfind('id:') + 1)
+        if reason_start != -1:
+            data['reason'] = content[reason_start + 7:].strip()
+        else:
+            # If no explicit reason is found, use the entire content as the reason
+            data['reason'] = content.strip()
+        
+        return data if 'discord_username' in data and 'discord_user_id' in data and 'reason' in data else None
 
 async def setup(bot):
     await bot.add_cog(Blacklist(bot))
