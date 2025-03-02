@@ -109,6 +109,11 @@ async def on_message_delete(message):
                           color=discord.Color.red())
 
     channel2 = bot.get_channel(1260856171905159190)
+    if channel2:
+        embed2 = discord.Embed(title=f"{message_before.author}'s Message Was Edited", description=f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp=datetime.now(), color=1)
+        await channel2.send(embed=embed2)
+    else:
+        print(f"Error: Could not find channel with ID 1260856171905159190")
     embed2 = discord.Embed(title = f"{message.author}'s Message Was Deleted",description = f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", timestamp = datetime.now(), color = 5)
     await channel2.send(embed = embed2)
 
@@ -137,6 +142,11 @@ async def on_message_edit(message_before, message_after):
                           color=discord.Color.blue())
     
     channel2 = bot.get_channel(1260856171905159190)
+    if channel2:
+        embed2 = discord.Embed(title=f"{message_before.author}'s Message Was Edited", description=f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp=datetime.now(), color=1)
+        await channel2.send(embed=embed2)
+    else:
+        print(f"Error: Could not find channel with ID 1260856171905159190")
     embed2 = discord.Embed(title = f"{message_before.author}'s Message Was Edited", description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
     await channel2.send(embed = embed2)
 
