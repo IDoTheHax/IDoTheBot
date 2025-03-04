@@ -252,5 +252,6 @@ Reason: Griefing and using hacks"""
             return data
         else:
             return None
+            
 async def setup(bot):
     await bot.add_cog(Blacklist(bot))
