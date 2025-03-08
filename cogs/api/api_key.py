@@ -124,7 +124,8 @@ class APIKeyCog(commands.Cog):
                         await interaction.followup.send("You don't have any API keys.", ephemeral=True)
                         return
                     
-                    keys_text = "\n".join([f"• `{key['key']}` (Created: {key['created_at']})" for key in keys])
+                    # Modified line to handle missing 'created_at' field
+                    keys_text = "\n".join([f"• `{key['key']}` (Created: {key.get('created_at', 'Unknown date')})" for key in keys])
                     await interaction.followup.send(
                         f"Your API keys:\n{keys_text}", ephemeral=True
                     )

@@ -200,12 +200,98 @@ class TicketSystem(commands.Cog):
             except discord.NotFound:
                 await interaction.response.send_message("Could not find the message with the ticket buttons.", ephemeral=True)
 
+    @tickets.command(name="set_archive_category", description="Set the category for archived tickets")
+    @commands.has_permissions(administrator=True)
+    async def set_archive_category(self, interaction: discord.Interaction, category: discord.CategoryChannel):
+        settings = load_guild_settings(interaction.guild.id)
+        settings["archive_category_id"] = category.id
+        save_guild_settings(interaction.guild.id, settings)
+        await interaction.response.send_message(f"Archive category set to {category.name}.", ephemeral=True)
+
+    @tickets.command(name="archive", description="Archive the current ticket")
+    @commands.has_permissions(manage_channels=True)
+    async def archive_ticket(self, interaction: discord.Interaction):
+        if "ticket" not in interaction.channel.name:
+            await interaction.response.send_message("This is not a ticket channel.", ephemeral=True)
+            return
+
+        guild = interaction.guild
+        settings = load_guild_settings(guild.id)
+        allowed_roles = settings.get("allowed_roles", [])
+        archive_category_id = settings.get("archive_category_id")
+        
+        # Get the user who created the ticket from the channel name
+        ticket_creator_name = interaction.channel.name.split('-')[-1]
+        ticket_creator = discord.utils.get(guild.members, name=ticket_creator_name)
+        
+        # New permission overwrites for archived channel
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+        }
+        
+        # Add allowed roles permissions
+        for role_id in allowed_roles:
+            role = guild.get_role(role_id)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True
+                )
+        
+        # Explicitly deny access to the ticket creator if they're still in the server
+        if ticket_creator:
+            overwrites[ticket_creator] = discord.PermissionOverwrite(view_channel=False)
+        
+        # Get archive category if set
+        category = None
+        if archive_category_id:
+            category = discord.utils.get(guild.categories, id=archive_category_id)
+        
+        # Update channel name to indicate it's archived
+        new_channel_name = f"archived-{interaction.channel.name}"
+        
+        try:
+            await interaction.channel.edit(
+                name=new_channel_name,
+                category=category,
+                overwrites=overwrites,
+                reason="Ticket archived"
+            )
+            await interaction.channel.send("This ticket has been archived. Only staff can view it now.")
+            await interaction.response.send_message("Ticket has been archived.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"Failed to archive ticket: {str(e)}", ephemeral=True)
+
     @tickets.command(name="close", description="Close the current ticket")
     async def close_ticket(self, interaction: discord.Interaction):
-        if "ticket" in interaction.channel.name:
-            await interaction.channel.delete(reason="Ticket closed")
-        else:
+        if "ticket" not in interaction.channel.name:
             await interaction.response.send_message("This is not a ticket channel.", ephemeral=True)
+            return
+
+        # Create a view with buttons for archive and delete
+        class CloseOptionsView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=60)
+            
+            @discord.ui.button(label="Archive", style=discord.ButtonStyle.primary)
+            async def archive_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                await self.cog.archive_ticket(interaction)
+                self.stop()
+                
+            @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger)
+            async def delete_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                await interaction.channel.delete(reason="Ticket closed")
+                self.stop()
+
+        view = CloseOptionsView()
+        view.cog = self  # Pass the cog instance to the view
+        await interaction.response.send_message(
+            "Choose an option for closing this ticket:",
+            view=view,
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(TicketSystem(bot))
