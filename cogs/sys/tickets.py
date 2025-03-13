@@ -214,7 +214,7 @@ class TicketSystem(commands.Cog):
         if "ticket" not in interaction.channel.name:
             await interaction.response.send_message("This is not a ticket channel.", ephemeral=True)
             return
-
+    
         guild = interaction.guild
         settings = load_guild_settings(guild.id)
         allowed_roles = settings.get("allowed_roles", [])
@@ -227,17 +227,17 @@ class TicketSystem(commands.Cog):
         # New permission overwrites for archived channel
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True),
         }
         
-        # Add allowed roles permissions
+        # Add permission overwrites for allowed roles (view and read history, but no sending messages)
         for role_id in allowed_roles:
             role = guild.get_role(role_id)
             if role:
                 overwrites[role] = discord.PermissionOverwrite(
                     view_channel=True,
-                    send_messages=True,
-                    read_message_history=True
+                    read_message_history=True,
+                    send_messages=False  # Deny sending messages for non-admin allowed roles
                 )
         
         # Explicitly deny access to the ticket creator if they're still in the server
@@ -259,7 +259,7 @@ class TicketSystem(commands.Cog):
                 overwrites=overwrites,
                 reason="Ticket archived"
             )
-            await interaction.channel.send("This ticket has been archived. Only staff can view it now.")
+            await interaction.channel.send("This ticket has been archived. Only staff can view it now, and only administrators can send messages.")
             await interaction.response.send_message("Ticket has been archived.", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"Failed to archive ticket: {str(e)}", ephemeral=True)
