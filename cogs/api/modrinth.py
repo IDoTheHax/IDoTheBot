@@ -43,6 +43,37 @@ class ModrinthStats(commands.Cog):
         with open(self.data_file, "w") as f:
             json.dump(data, f, indent=4)
 
+    def get_modrinth_downloads(self, mod_slug):
+        """Fetch download count from Modrinth."""
+        url = f"https://api.modrinth.com/v2/project/{mod_slug}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("downloads", 0)
+        return 0
+
+    def get_curseforge_downloads(self, project_id):
+        """Fetch download count from CurseForge (requires API key)."""
+        api_key = os.getenv("CURSEFORGE_API_KEY")  # Set this in your environment
+        if not api_key:
+            return 0
+        url = f"https://api.curseforge.com/v1/mods/{project_id}"
+        headers = {"x-api-key": api_key}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("data", {}).get("downloadCount", 0)
+        return 0
+
+    def get_github_downloads(self, repo):
+        """Fetch download count from GitHub Releases."""
+        url = f"https://api.github.com/repos/{repo}/releases"
+        response = requests.get(url)
+        if response.status_code == 200:
+            releases = response.json()
+            return sum(asset["download_count"] for release in releases for asset in release["assets"])
+        return 0
+
     @tasks.loop(minutes=5)  # Check every 5 minutes
     async def check_updates(self):
         if not self.notification_channel_id:
@@ -89,10 +120,27 @@ class ModrinthStats(commands.Cog):
                     await channel.send(embed=embed)
 
                 # Update tracked data
-                self.tracked_projects[mod_slug] = {
-                    "latest_version": latest_version,
-                    "follows": current_follows,
-                }
+                self.tracked_projects[mod_slug]["latest_version"] = latest_version
+                self.tracked_projects[mod_slug]["follows"] = current_follows
+
+                # Check downloads if platforms are specified
+                if "curseforge_id" in last_data or "github_repo" in last_data:
+                    total_downloads = self.get_modrinth_downloads(mod_slug)
+                    if "curseforge_id" in last_data:
+                        total_downloads += self.get_curseforge_downloads(last_data["curseforge_id"])
+                    if "github_repo" in last_data:
+                        total_downloads += self.get_github_downloads(last_data["github_repo"])
+                    last_downloads = last_data.get("total_downloads", 0)
+                    if total_downloads > last_downloads:
+                        embed = discord.Embed(
+                            title=f"New Downloads for {data.get('title', 'Unknown')}",
+                            description=f"The mod [{mod_slug}](https://modrinth.com/mod/{mod_slug}) gained new downloads!",
+                            color=discord.Color.gold(),
+                        )
+                        embed.add_field(name="Total Downloads", value=f"{total_downloads:,}", inline=False)
+                        await channel.send(embed=embed)
+                    self.tracked_projects[mod_slug]["total_downloads"] = total_downloads
+
                 self.save_data()  # Save updated data to file
 
             except Exception as e:
@@ -102,17 +150,21 @@ class ModrinthStats(commands.Cog):
     async def before_check_updates(self):
         await self.bot.wait_until_ready()  # Wait for the bot to ready up before starting the task
 
-    @app_commands.command(name="trackmod", description="Start tracking updates for a Modrinth mod.")
-    @app_commands.describe(mod="The slug or name of the mod to track.")
-    async def track_mod(self, interaction: discord.Interaction, mod: str):
-        """Start tracking updates for a Modrinth mod."""
+    @app_commands.command(name="trackmod", description="Start tracking updates for a mod across platforms.")
+    @app_commands.describe(
+        mod="The Modrinth slug or name of the mod to track.",
+        curseforge_id="The CurseForge project ID (optional).",
+        github_repo="The GitHub repository (e.g., 'user/repo') (optional)."
+    )
+    async def track_mod(self, interaction: discord.Interaction, mod: str, curseforge_id: str = None, github_repo: str = None):
+        """Start tracking updates for a mod across Modrinth, CurseForge, and GitHub."""
         await interaction.response.defer()
 
         url = f"https://api.modrinth.com/v2/project/{mod}"
         try:
             response = requests.get(url)
             if response.status_code != 200:
-                await interaction.followup.send("Could not find the mod. Please check the mod name or slug.")
+                await interaction.followup.send("Could not find the mod on Modrinth. Please check the mod name or slug.")
                 return
 
             data = response.json()
@@ -121,17 +173,30 @@ class ModrinthStats(commands.Cog):
             self.tracked_projects[mod] = {
                 "latest_version": data.get("versions", [])[-1] if data.get("versions") else None,
                 "follows": data.get("follows", 0),
+                "total_downloads": self.get_modrinth_downloads(mod),
             }
+            if curseforge_id:
+                self.tracked_projects[mod]["curseforge_id"] = curseforge_id
+                self.tracked_projects[mod]["total_downloads"] += self.get_curseforge_downloads(curseforge_id)
+            if github_repo:
+                self.tracked_projects[mod]["github_repo"] = github_repo
+                self.tracked_projects[mod]["total_downloads"] += self.get_github_downloads(github_repo)
+
             self.save_data()  # Save updated data to file
 
-            await interaction.followup.send(f"Now tracking updates for `{mod}`. Notifications will be sent to the set notification channel.")
+            platforms = ["Modrinth"]
+            if curseforge_id:
+                platforms.append("CurseForge")
+            if github_repo:
+                platforms.append("GitHub")
+            await interaction.followup.send(f"Now tracking updates for `{mod}` across {', '.join(platforms)}. Notifications will be sent to the set notification channel.")
         except Exception as e:
             await interaction.followup.send(f"An error occurred: {e}")
 
-    @app_commands.command(name="setnotificationchannel", description="Set the channel for Modrinth update notifications.")
+    @app_commands.command(name="setnotificationchannel", description="Set the channel for update notifications.")
     @app_commands.describe(channel="The channel to send notifications to.")
     async def set_notification_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        """Set the channel for Modrinth update notifications."""
+        """Set the channel for update notifications."""
         await interaction.response.defer()
 
         self.notification_channel_id = channel.id
@@ -139,56 +204,56 @@ class ModrinthStats(commands.Cog):
 
         await interaction.followup.send(f"Notification channel set to {channel.mention}.")
 
-    @app_commands.command(name="mrmodrinth", description="Get stats about a Modrinth mod.")
-    @app_commands.describe(mod="The slug or name of the mod to fetch stats for.")
-    async def stats(self, interaction: discord.Interaction, mod: str):
-        """Fetch and display stats for a Modrinth mod."""
+    @app_commands.command(name="mrmodrinth", description="Get stats about a mod across platforms.")
+    @app_commands.describe(
+        mod="The Modrinth slug or name of the mod to fetch stats for.",
+        curseforge_id="The CurseForge project ID (optional).",
+        github_repo="The GitHub repository (e.g., 'user/repo') (optional)."
+    )
+    async def stats(self, interaction: discord.Interaction, mod: str, curseforge_id: str = None, github_repo: str = None):
+        """Fetch and display stats for a mod across Modrinth, CurseForge, and GitHub."""
         await interaction.response.defer()
 
         # Modrinth API Endpoint
         url = f"https://api.modrinth.com/v2/project/{mod}"
-
         try:
-            # Fetch the mod data
             response = requests.get(url)
             if response.status_code != 200:
-                await interaction.followup.send("Could not find the mod. Please check the mod name or slug.")
+                await interaction.followup.send("Could not find the mod on Modrinth. Please check the mod name or slug.")
                 return
 
             data = response.json()
 
-            # Extract required fields
+            # Extract Modrinth stats
             name = data.get("title", "Unknown")
             tags = ", ".join(data.get("categories", [])) or "None"
-            downloads = data.get("downloads", 0)
+            modrinth_downloads = data.get("downloads", 0)
             hearts = data.get("follows", 0)
-
-            # Extract platforms (mod loaders)
-            loaders = data.get("loaders", [])
-            platforms = ", ".join([loader.capitalize() for loader in loaders]) if loaders else "Unknown"
-
-            # Extract environments (client/server compatibility)
+            loaders = ", ".join([loader.capitalize() for loader in data.get("loaders", [])]) or "Unknown"
             client_side = data.get("client_side", "unsupported")
             server_side = data.get("server_side", "unsupported")
-
             environments = []
             if client_side == "required":
                 environments.append("Client")
             if server_side == "required":
                 environments.append("Server")
-
-            # Format environments
-            if not environments:
-                environments.append("None")
-            environments = ", ".join(environments)
-
+            environments = ", ".join(environments) or "None"
             description = data.get("description", "No description available.")
-
-            versions = data.get("game_versions", [])
-            mc_version = ", ".join(versions) if versions else "Unknown"
-
+            mc_version = ", ".join(data.get("game_versions", [])) or "Unknown"
             if len(mc_version) > 1024:
-                mc_version = mc_version[:1021] + "..."  # Safeguard for length
+                mc_version = mc_version[:1021] + "..."
+
+            # Calculate total downloads
+            total_downloads = modrinth_downloads
+            download_sources = {"Modrinth": modrinth_downloads}
+            if curseforge_id:
+                curseforge_downloads = self.get_curseforge_downloads(curseforge_id)
+                total_downloads += curseforge_downloads
+                download_sources["CurseForge"] = curseforge_downloads
+            if github_repo:
+                github_downloads = self.get_github_downloads(github_repo)
+                total_downloads += github_downloads
+                download_sources["GitHub"] = github_downloads
 
             # Create the embed
             embed = discord.Embed(
@@ -198,12 +263,15 @@ class ModrinthStats(commands.Cog):
                 url=f"https://modrinth.com/mod/{mod}",
             )
             embed.add_field(name="Tags", value=tags, inline=False)
-            embed.add_field(name="Downloads", value=f"{downloads:,}", inline=True)
-            embed.add_field(name="Hearts", value=f"{hearts:,}", inline=True)
-            embed.add_field(name="Loaders", value=platforms, inline=True)
+            embed.add_field(name="Total Downloads", value=f"{total_downloads:,}", inline=True)
+            embed.add_field(name="Hearts (Modrinth)", value=f"{hearts:,}", inline=True)
+            embed.add_field(name="Loaders", value=loaders, inline=True)
             embed.add_field(name="Environments", value=environments, inline=True)
             embed.add_field(name="Versions", value=mc_version, inline=True)
-            embed.set_footer(text="Data fetched from Modrinth API")
+            # Add breakdown of downloads
+            download_breakdown = "\n".join(f"{platform}: {count:,}" for platform, count in download_sources.items())
+            embed.add_field(name="Download Breakdown", value=download_breakdown, inline=False)
+            embed.set_footer(text="Data fetched from Modrinth, CurseForge, and GitHub APIs")
 
             # Send the embed
             view = ChangelogButton(mod)
