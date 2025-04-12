@@ -1,0 +1,26 @@
+{
+    "tracked_projects": {
+        "blackhole": {
+            "latest_version": "xxhst1zy",
+            "follows": 0,
+            "total_downloads": 198,
+            "github_repo": "IDoTheHax/blackhole"
+        },
+        "rarays": {
+            "latest_version": "HfK1ZsXB",
+            "follows": 0,
+            "total_downloads": 286
+        },
+        "idotheblacklist": {
+            "latest_version": "zHhGiJ0c",
+            "follows": 0,
+            "total_downloads": 65
+        },
+        "The-lava-rising": {
+            "latest_version": "X7mTyBZg",
+            "follows": 0,
+            "total_downloads": 62
+        }
+    },
+    "notification_channel_id": 1349660225229164544
+}
