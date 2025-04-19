@@ -94,67 +94,38 @@ def should_log(message):
 # Log on delete
 @bot.event
 async def on_message_delete(message):
-    # Ignore DMs
-    if not message.guild:
-        return
-
-    # Check if the message should be logged
-    if not should_log(message):
+    if not message.guild or not should_log(message):
         return
 
     log_channel = get_log_channel(message.guild)
-    
-    # If no suitable channel is found, we can't log the deletion
     if not log_channel:
         return
 
-    embed = discord.Embed(title=f"{message.author}'s Message Was Deleted", 
-                          description=f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", 
-                          timestamp=datetime.now(), 
-                          color=discord.Color.red())
-
-    channel2 = bot.get_channel(1260856171905159190)
-    if channel2:
-        embed2 = discord.Embed(title=f"{message_before.author}'s Message Was Edited", description=f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp=datetime.now(), color=1)
-        await channel2.send(embed=embed2)
-    else:
-        print(f"Error: Could not find channel with ID 1260856171905159190")
-    embed2 = discord.Embed(title = f"{message.author}'s Message Was Deleted",description = f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}", timestamp = datetime.now(), color = 5)
-    await channel2.send(embed = embed2)
-
+    embed = discord.Embed(
+        title=f"{message.author}'s Message Was Deleted",
+        description=f"Deleted Message: {message.content}\nAuthor: {message.author.mention}\nLocation: {message.channel.mention}",
+        timestamp=datetime.now(),
+        color=discord.Color.red()
+    )
     await log_channel.send(embed=embed)
 
 # Log on edit
 @bot.event
 async def on_message_edit(message_before, message_after):
-    # Ignore DMs
-    if not message_before.guild:
-        return
-
-    # Check if the message should be logged
-    if not should_log(message_before):
+    if not message_before.guild or not should_log(message_before):
         return
 
     log_channel = get_log_channel(message_before.guild)
-    
-    # If no suitable channel is found, we can't log the edit
     if not log_channel:
         return
 
-    embed = discord.Embed(title=f"{message_before.author}'s Message Was Edited", 
-                          description=f"Before: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", 
-                          timestamp=datetime.now(), 
-                          color=discord.Color.blue())
-    
-    channel2 = bot.get_channel(1260856171905159190)
-    if channel2:
-        embed2 = discord.Embed(title=f"{message_before.author}'s Message Was Edited", description=f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp=datetime.now(), color=1)
-        await channel2.send(embed=embed2)
-    else:
-        print(f"Error: Could not find channel with ID 1260856171905159190")
-    embed2 = discord.Embed(title = f"{message_before.author}'s Message Was Edited", description = f"Message: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}", timestamp = datetime.now(), color = 1)
-    await channel2.send(embed = embed2)
-
+    embed = discord.Embed(
+        title=f"{message_before.author}'s Message Was Edited",
+        description=f"Before: {message_before.content}\nAfter: {message_after.content}\nAuthor: {message_before.author.mention}\nLocation: {message_before.channel.mention}",
+        timestamp=datetime.now(),
+        color=discord.Color.blue()
+    )
+    await log_channel.send(embed=embed)
 
 @bot.tree.command(name="embed", description="Create an embed message")
 @app_commands.describe(
