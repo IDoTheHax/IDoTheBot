@@ -7,8 +7,9 @@ import datetime as dt
 import requests
 import json
 import os
+import time
 from dotenv import load_dotenv
-
+import logging
 
 
 bot = commands.Bot(command_prefix='/', intents=discord.Intents.all())
@@ -32,6 +33,10 @@ def load_blacklist(filename):
 
 BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
 BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 async def load_cogs():
     for root, dirs, files in os.walk("./cogs"):  # Recursively walks through the cogs directory
@@ -152,10 +157,51 @@ async def on_message_edit(message_before, message_after):
 
 
 @bot.tree.command(name="embed", description="Create an embed message")
-@app_commands.describe(title="Embed title", description="Embed description", color="Embed color (hex)")
-async def embed(interaction: discord.Interaction, title: str, description: str, color: str):
-    embed = discord.Embed(title=title, description=description, color=int(color, 16))
-    await interaction.response.send_message(embed=embed)
+@app_commands.describe(
+    title="Embed title", 
+    description="Embed description (use \\n for newlines)", 
+    color="Embed color (hex code without #, e.g. FF5733)"
+)
+async def embed(interaction: discord.Interaction, title: str, description: str, color: str = "2F3136"):
+    start_time = time.time()
+    try:
+        # Log and defer immediately
+        logger.info(f"Received /embed command, deferring response")
+        await interaction.response.defer(ephemeral=False)
+        logger.info(f"Deferred response in {time.time() - start_time:.2f} seconds")
+
+        # Validate inputs
+        if len(title) > 256:
+            await interaction.followup.send("Title is too long (max 256 characters).", ephemeral=True)
+            return
+        if len(description) > 4096:
+            await interaction.followup.send("Description is too long (max 4096 characters).", ephemeral=True)
+            return
+
+        # Process description
+        formatted_description = description.replace("\\n", "\n")
+        
+        # Convert hex color to integer
+        try:
+            color_int = int(color, 16)
+        except ValueError:
+            color_int = 0x2F3136  # Default color
+            
+        embed = discord.Embed(
+            title=title,
+            description=formatted_description,
+            color=color_int
+        )
+        
+        # Send the embed
+        await interaction.followup.send(embed=embed)
+        logger.info(f"Embed sent in {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in embed command after {time.time() - start_time:.2f} seconds: {str(e)}")
+        try:
+            await interaction.followup.send(f"Error creating embed: {str(e)}", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Failed to send error message: {str(followup_error)}")
 
 @bot.tree.command(name="editembed", description="Edit embed messages by its id")
 @app_commands.describe(message_id="Message ID", title="Embed title", description="Embed description", color="Embed color (hex)")
@@ -308,6 +354,89 @@ async def reload_blacklists(interaction: discord.Interaction):
     BLACKLISTED_USERS = load_blacklist('blacklisted_users.json')
     BLACKLISTED_CHANNELS = load_blacklist('blacklisted_channels.json')
     await interaction.response.send_message("Blacklists reloaded.")
+
+@bot.tree.command(name="giverole", description="Assign a role to a user by role ID")
+@app_commands.describe(member="The user to give the role to", role_id="The ID of the role to assign (e.g., 1201518458739892334)")
+@app_commands.checks.has_permissions(administrator=True)
+async def giverole(interaction: discord.Interaction, member: discord.Member, role_id: str):
+    try:
+        # Log the input for debugging
+        logger.info(f"Received /giverole: member={member.id}, role_id={role_id}")
+
+        # Validate role_id as a string and convert to integer
+        if not role_id.isdigit():
+            await interaction.response.send_message(
+                "Please provide a valid role ID (must be a positive integer, e.g., 1201518458739892334).",
+                ephemeral=True
+            )
+            return
+
+        role_id_int = int(role_id)  # Convert to integer for role lookup
+
+        # Validate role_id range (Discord snowflake IDs are 64-bit)
+        if role_id_int <= 0 or role_id_int > 2**64 - 1:
+            await interaction.response.send_message(
+                "Please provide a valid role ID (positive integer within Discord's ID range).",
+                ephemeral=True
+            )
+            return
+
+        # Fetch the role
+        role = interaction.guild.get_role(role_id_int)
+        if role is None:
+            await interaction.response.send_message(
+                f"No role found with ID `{role_id}`. Please check the ID and try again.",
+                ephemeral=True
+            )
+            return
+
+        # Check if the bot has permission to assign the role
+        if not interaction.guild.me.guild_permissions.manage_roles:
+            await interaction.response.send_message(
+                "I don’t have permission to manage roles. Please check my permissions.",
+                ephemeral=True
+            )
+            return
+
+        # Check if the bot's role is higher than the target role
+        if role.position >= interaction.guild.me.top_role.position:
+            await interaction.response.send_message(
+                "I can’t assign this role because it’s higher than or equal to my highest role.",
+                ephemeral=True
+            )
+            return
+
+        # Assign the role
+        await member.add_roles(role)
+        await interaction.response.send_message(
+            f"Successfully assigned {role.name} to {member.mention}",
+            ephemeral=True
+        )
+
+    except ValueError:
+        logger.error(f"ValueError: Invalid role_id format: {role_id}")
+        await interaction.response.send_message(
+            "Please provide a valid role ID (must be a positive integer, e.g., 1201518458739892334).",
+            ephemeral=True
+        )
+    except discord.app_commands.AppCommandError as ae:
+        logger.error(f"AppCommandError in giverole: {ae}")
+        await interaction.response.send_message(
+            f"Command error: {str(ae)}",
+            ephemeral=True
+        )
+    except discord.Forbidden:
+        logger.error("Forbidden error: Bot lacks permissions")
+        await interaction.response.send_message(
+            "I don’t have permission to assign roles. Please check my permissions and role hierarchy.",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in giverole: {e}")
+        await interaction.response.send_message(
+            f"An unexpected error occurred: {str(e)}. Please try again or contact the bot owner.",
+            ephemeral=True
+        )
 
 @reload_blacklists.error
 async def reload_blacklists_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
