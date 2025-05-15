@@ -19,6 +19,7 @@ load_dotenv()
 
 # Access the token from the environment variable
 TOKEN = os.getenv("BOT_TOKEN")
+BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", 1362041490779672576))  # Add BOT_OWNER_ID to .env
 
 # Load blacklists from JSON files
 def load_blacklist(filename):
