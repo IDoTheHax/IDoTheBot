@@ -14,7 +14,7 @@ class AutoMute(commands.Cog):
 
     def load_all_settings(self):
         self.protected_users = self.load_json('ping_blacklist.json')
-        self.anti_ping_status = self.load_json('config.json')
+        self.anti_ping_status = self.load_json('anti_ping_config.json')
 
     def load_json(self, filename):
         filepath = os.path.join(self.settings_path, filename)
