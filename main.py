@@ -52,6 +52,11 @@ async def load_cogs():
                 except Exception as e:
                     print(f"Failed to load {cog_path}: {e}")
 
+def is_bot_owner():
+    def predicate(interaction: discord.Interaction) -> bool:
+        return interaction.user.id == BOT_OWNER_ID
+    return app_commands.check(predicate)
+
 # When bot starts
 @bot.event
 async def on_ready():
@@ -72,6 +77,57 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
+
+@bot.tree.command(name="reload", description="Reload all cogs or a specific cog (bot owner only)")
+@app_commands.describe(cog_name="Name of the specific cog to reload (optional, e.g., sys.tickets)")
+@is_bot_owner()
+async def reload(interaction: discord.Interaction, cog_name: str = None):
+    """Reload all cogs or a specific cog."""
+    await interaction.response.defer(ephemeral=True)
+    try:
+        if cog_name:
+            # Reload a specific cog
+            try:
+                await bot.reload_extension(cog_name)
+                logger.info(f"Reloaded cog: {cog_name}")
+                await interaction.followup.send(f"Reloaded cog: `{cog_name}`", ephemeral=True)
+            except commands.ExtensionNotLoaded:
+                await interaction.followup.send(f"Cog `{cog_name}` is not loaded.", ephemeral=True)
+            except commands.ExtensionNotFound:
+                await interaction.followup.send(f"Cog `{cog_name}` not found.", ephemeral=True)
+            except Exception as e:
+                logger.error(f"Failed to reload cog {cog_name}: {e}")
+                await interaction.followup.send(f"Failed to reload cog `{cog_name}`: {e}", ephemeral=True)
+        else:
+            # Reload all cogs
+            reloaded = []
+            for root, dirs, files in os.walk("./cogs"):
+                for file in files:
+                    if file.endswith(".py") and file != "__init__.py":
+                        cog_path = os.path.join(root, file).replace("./", "").replace("\\", ".").replace("/", ".")
+                        cog_path = cog_path[:-3]  # Remove .py extension
+                        try:
+                            await bot.reload_extension(cog_path)
+                            reloaded.append(cog_path)
+                            logger.info(f"Reloaded cog: {cog_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to reload cog {cog_path}: {e}")
+                            await interaction.followup.send(f"Failed to reload cog `{cog_path}`: {e}", ephemeral=True)
+            if reloaded:
+                await interaction.followup.send(f"Reloaded cogs: {', '.join(reloaded)}", ephemeral=True)
+            else:
+                await interaction.followup.send("No cogs were reloaded.", ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in reload command: {e}")
+        await interaction.followup.send(f"Error: {e}", ephemeral=True)
+
+@reload.error
+async def reload_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CheckFailure):
+        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+    else:
+        logger.error(f"Error in reload command: {error}")
+        await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
 # Get log channels
 def get_log_channel(guild):
