@@ -22,7 +22,6 @@ class JoinAndLeave(commands.Cog):
 
     def get_guild_settings(self, guild_id):
         return self.guild_settings.setdefault(str(guild_id), {
-            "channel_id": None,
             "join_message": "Welcome {user}!",
             "leave_message": "Goodbye {user}!",
             "notify_join": True,
@@ -83,8 +82,8 @@ class JoinAndLeave(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         settings = self.get_guild_settings(member.guild.id)
-        if settings["channel_id"] and settings["notify_join"]:
-            channel = self.bot.get_channel(settings["channel_id"])
+        if "join_channel_id" in settings and settings["notify_join"]:
+            channel = self.bot.get_channel(settings["join_channel_id"])
             if channel:
                 message = settings["join_message"].format(user=member.mention)
                 await channel.send(message)
@@ -92,8 +91,8 @@ class JoinAndLeave(commands.Cog):
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         settings = self.get_guild_settings(member.guild.id)
-        if settings["channel_id"] and settings["notify_leave"]:
-            channel = self.bot.get_channel(settings["channel_id"])
+        if "leave_channel_id" in settings and settings["notify_leave"]:
+            channel = self.bot.get_channel(settings["leave_channel_id"])
             if channel:
                 message = settings["leave_message"].format(user=member.mention)
                 await channel.send(message)
