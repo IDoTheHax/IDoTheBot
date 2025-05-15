@@ -10,14 +10,14 @@ class CommandControl(commands.Cog):
 
     def load_disabled_commands(self):
         try:
-            with open('disabled_commands.json', 'r') as f:
+            with open('settings/disabled_commands.json', 'r') as f:
                 return json.load(f)
         except FileNotFoundError:
             print("disabled_commands.json not found, creating an empty config.")
             return {}
 
     def save_disabled_commands(self):
-        with open('disabled_commands.json', 'w') as f:
+        with open('settings/disabled_commands.json', 'w') as f:
             json.dump(self.disabled_commands, f, indent=4)
 
     def get_disabled_commands_for_guild(self, guild_id):
