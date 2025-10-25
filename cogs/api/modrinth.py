@@ -459,6 +459,4 @@ class VersionButton(discord.ui.View):
 
 
 async def setup(bot: commands.Bot):
-    cog = ModrinthStats(bot)
-    await bot.add_cog(cog)
-    bot.tree.add_command(cog.mcmod_group)
+    await bot.add_cog(ModrinthStats(bot))
