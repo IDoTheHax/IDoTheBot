@@ -163,3 +163,4 @@ cython_debug/
 .env
 /settings/*
 .git-credentials
+.github/copilot-instructions.md

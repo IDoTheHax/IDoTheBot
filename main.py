@@ -4,7 +4,7 @@ from discord.ext import commands
 from datetime import datetime
 from cogs.sys.tickets import TicketView
 import datetime as dt
-import requests
+import aiohttp
 import json
 import os
 import time
@@ -248,12 +248,15 @@ async def editembed(ctx, message_id: str, title: str, description: str, color: s
 @app_commands.describe(username="GitHub username", repository="Repository name")
 async def github(interaction: discord.Interaction, username: str, repository: str):
     url = f'https://api.github.com/repos/{username}/{repository}'
-    response = requests.get(url)
-    data = json.loads(response.text)
-
-    if response.status_code != 200:
-        await interaction.response.send_message(f"Error: {data.get('message', 'Unknown error occurred')}", ephemeral=True)
-        return
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            try:
+                data = await resp.json()
+            except Exception:
+                data = {}
+            if resp.status != 200:
+                await interaction.response.send_message(f"Error: {data.get('message', 'Unknown error occurred')}", ephemeral=True)
+                return
 
     embed = discord.Embed(title=data['name'], description=data['description'], color=0x00ff00)
     embed.add_field(name='Stars', value=data['stargazers_count'])
